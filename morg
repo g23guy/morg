@@ -81,6 +81,11 @@ mimetypes.add_type('audio/amr', '.amr')
 # group(4): [-Description]
 FILENAME_PATTERN = re.compile(r"^(\d{8}-\d{6})(?:-([^-_\.]+))?(?:-([^-_\.]+))?(?:-([^-_\.]+))?(?:_(\d+))?\.(" + ext_all_str + ")$")
 
+# Filename style: Android
+# Regex: YYYYMMDD_HHMMSS.ext
+# group(1): YYYYMMDD_HHMMSS
+ANDROID_PATTERN = re.compile(r"^(\d{8}_\d{6})\.(" + ext_image_str + ")$")
+
 def get_mime_list(filepath):
     mime_type, _ = mimetypes.guess_type(filepath)
     if mime_type:
@@ -90,6 +95,7 @@ def get_mime_list(filepath):
 
 def get_datetime(filepath):
     ext = os.path.splitext(filepath)[-1].lower()
+    filename = os.path.basename(filepath)
 
     if ext in ext_images:
         try:
@@ -101,6 +107,12 @@ def get_datetime(filepath):
                             return datetime.strptime(value, "%Y:%m:%d %H:%M:%S"), "creation"
                         elif TAGS.get(tag) == "DateTimeDigitized":
                             return datetime.strptime(value, "%Y:%m:%d %H:%M:%S"), "digitized"
+        except Exception: pass
+
+        android_style = ANDROID_PATTERN.match(filename.lower())
+        try:
+            if android_style:
+                return datetime.strptime(android_style.group(1), "%Y%m%d_%H%M%S"), "android"
         except Exception: pass
 
     if ext in ext_videos or ext in ext_sounds:

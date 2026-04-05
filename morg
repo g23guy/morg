@@ -1,5 +1,5 @@
 #!/usr/bin/python3.12
-SVER = '0.5.1'
+SVER = '0.6.0'
 ##############################################################################
 # morg - Media Organizer
 # Copyright (C) 2026 Jason Record
@@ -16,7 +16,7 @@ SVER = '0.5.1'
 #               Overridden dates and times are written to the filesystem 
 #               access and modification times to applicable files."
 #
-# Modified:     2026 Apr 03
+# Modified:     2026 Apr 04
 #
 ##############################################################################
 #
@@ -53,7 +53,7 @@ from PIL.ExifTags import TAGS
 import moviepy.editor as mp
 
 # Supported extensions
-ext_image_str = "jpg|jpeg|png|bmp|tif|tiff|heic|webp|pgm|ppm|pmb|pnm|jfif|jp2|j2k|jxl"
+ext_image_str = "jpg|jpeg|png|bmp|tif|tiff|heic|webp|pgm|ppm|pmb|pnm|jfif|jp2|j2k|jxl|xcf"
 ext_image_convert_str = "heic|tiff|tif"
 ext_video_str = "mp4|mov|avi|mkv|wmv|webm|3gp"
 ext_video_convert_str = "mov"
@@ -73,13 +73,29 @@ mimetypes.add_type('image/jfif', '.jfif')
 mimetypes.add_type('image/jxl', '.jxl')
 mimetypes.add_type('audio/amr', '.amr')
 
-
 # Regex: YYYYMMDD-HHMMSS[-State][-Location][-Description](_#).ext
 # group(1): YYYYMMDD-HHMMSS
 # group(2): [-State]
 # group(3): [-Location]
 # group(4): [-Description]
 FILENAME_PATTERN = re.compile(r"^(\d{8}-\d{6})(?:-([^-_\.]+))?(?:-([^-_\.]+))?(?:-([^-_\.]+))?(?:_(\d+))?\.(" + ext_all_str + ")$")
+
+# Filename style: Android
+# Regex: YYYYMMDD_HHMMSS.ext
+# group(1): YYYYMMDD_HHMMSS
+# ANDROID_PATTERN = re.compile(r"^(\d{8}_\d{6})\.(" + ext_image_str + ")$")
+ANDROID_PATTERN = re.compile(r"^(?:img_|vid_)?(\d{8}_\d{6})(?:\d{3})?\.(" + ext_all_str + ")$")
+
+# Filename style: Linux Screen Shot
+# Regex: Screenshot from YYYY-MM-DD HH-MM-SS.ext
+# group(1): YYYY-MM-DD HH-MM-SS
+SSLINUX_PATTERN = re.compile(r"^Screenshot from (\d{4}-\d{2}-\d{2} \d{2}-\d{2}-\d{2})\.(" + ext_image_str + ")$", re.IGNORECASE)
+
+# Filename style: Windows Screen Shots
+# Regex: Screenshot YYYY-MM-DD HHMMSS.png or screenshot_YYYY-MM-DD_HHMMSS.png
+# group(1): YYYY-MM-DD
+# group(2): HHMMSS
+SSWINDOWS_PATTERN = re.compile(r"^Screenshot[_ ](\d{4}-\d{2}-\d{2})[_ ](\d{6})\.(" + ext_image_str + ")$", re.IGNORECASE)
 
 def get_mime_list(filepath):
     mime_type, _ = mimetypes.guess_type(filepath)
@@ -90,8 +106,15 @@ def get_mime_list(filepath):
 
 def get_datetime(filepath):
     ext = os.path.splitext(filepath)[-1].lower()
+    filename = os.path.basename(filepath)
 
+    # Look for supported filename styles
+    android_style = ANDROID_PATTERN.match(filename.lower())
+
+    # Date Priority 1: Meta Date/Time
     if ext in ext_images:
+        sslinux_style = SSLINUX_PATTERN.match(filename.lower())
+        sswin_style = SSWINDOWS_PATTERN.match(filename.lower())
         try:
             with Image.open(filepath) as img:
                 exif_data = img._getexif()
@@ -103,6 +126,18 @@ def get_datetime(filepath):
                             return datetime.strptime(value, "%Y:%m:%d %H:%M:%S"), "digitized"
         except Exception: pass
 
+    # Date Priority 2: Supported Filename Style Date/Time
+        try:
+            if android_style:
+                return datetime.strptime(android_style.group(1), "%Y%m%d_%H%M%S"), "android"
+            elif sslinux_style:
+                return datetime.strptime(sslinux_style.group(1), "%Y-%m-%d %H-%M-%S"), "sslinux"
+            elif sswin_style:
+                value = sswin_style.group(1) + "_" + sswin_style.group(2)
+                return datetime.strptime(value, "%Y-%m-%d_%H%M%S"), "sswin"
+        except Exception: pass
+
+    # Date Priority 1: Meta Date/Time
     if ext in ext_videos or ext in ext_sounds:
         try:
             with exiftool.ExifToolHelper() as et:
@@ -112,6 +147,13 @@ def get_datetime(filepath):
                     return datetime.strptime(value, "%Y:%m:%d %H:%M:%S"), "creation"
         except Exception: pass
 
+    # Date Priority 2: Supported Filename Style Date/Time
+        try:
+            if android_style:
+                return datetime.strptime(android_style.group(1), "%Y%m%d_%H%M%S"), "android"
+        except Exception: pass
+
+    # Date Priority 3: Filesystem Modification Date/Time
     return datetime.fromtimestamp(os.path.getmtime(filepath)), "modified"
 
 def set_datetime(file_path, dt):
@@ -403,7 +445,7 @@ def process_media(target_input, recurse, adjacent, state_arg, location_arg, desc
             if os.path.abspath(new_path) == os.path.abspath(old_path) and not forced: continue
 
             try:
-                action = "adjacent" if source == "adjacent" else "renamed"
+                action = "renamed"
                 file_cnt += 1
                 if time_sequenced:
                     if not given_time:
@@ -502,7 +544,7 @@ def process_media(target_input, recurse, adjacent, state_arg, location_arg, desc
             with open(os.path.join(root, f"process_log_{datetime.now().strftime('%Y%m%d_%H%M%S')}.json"), 'w') as f:
                 json.dump(change_log, f, indent=4)
 
-    if file_cnt > 0: display_logs(target_input, verbose, all_subdirs=False)
+    if file_cnt > 0 and not recurse: display_logs(target_input, verbose, all_subdirs=False)
     action_str = "[SUMMARY]"
     print(f"{action_str:<11} Processed {file_cnt} matching files out of {file_eval} found")
 
@@ -535,11 +577,14 @@ if __name__ == "__main__":
                     " Videos:      " + ext_video_str + "\n"
                     "  Convert:    " + ext_video_convert_str + " to mp4\n"
                     " Sounds:      " + ext_sound_str + "\n\n"
-                    "An attempt is first made to use the original creation date and time. If not available, the \n"
-                    "modification date and time is used. You can override them with -D/--yyyymmdd and -T/--hhmmss.\n"
+                    "Source date/time for renaming media files:\n"
+                    " Priority 1: Override with -D/-T command options\n"
+                    " Priority 2: The original date/time in the media metadata\n"
+                    " Priority 3: Supported filename styles - android, sslinux, sswin\n"
+                    " Priority 4: Filesystem modification date/time\n\n"
                     "Using -D or -T alone causes the missing value to be extracted from the file. Overridden dates\n"
                     "and times are written to the filesystem access and modification times to applicable files. An\n"
-                    "attempt is also made to write the overridden date and time to the metadata original creation."
+                    "attempt is also made to write the overridden date/time as the original date/time in the media metadata."
                     ,
         formatter_class=argparse.RawTextHelpFormatter
     )
@@ -560,7 +605,7 @@ if __name__ == "__main__":
     parser.add_argument("-d", "--description", help="Description tag")
     parser.add_argument("-D", "--yyyymmdd", type=date_digits, help="Override meta creation(if possible) and filesystem modification date value, requires 8 digits")
     parser.add_argument("-T", "--hhmmss", type=time_digits, help="Override meta creation(if possible) and filesystem modification time value, requires 6 digits")
-    parser.add_argument("-t", "--time-sequenced", action="store_true", help="Use -T/--hhmmss time if given, or the first file's time and increment it for sebsequent files")
+    parser.add_argument("-t", "--time-sequenced", action="store_true", help="Use -T/--hhmmss time if given or the first file's time, and increment it for sebsequent files")
     
     if len(sys.argv) == 1: parser.print_help(); sys.exit(1)
     args = parser.parse_args()

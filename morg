@@ -84,7 +84,7 @@ FILENAME_PATTERN = re.compile(r"^(\d{8}-\d{6})(?:-([^-_\.]+))?(?:-([^-_\.]+))?(?
 # Regex: YYYYMMDD_HHMMSS.ext
 # group(1): YYYYMMDD_HHMMSS
 # ANDROID_PATTERN = re.compile(r"^(\d{8}_\d{6})\.(" + ext_image_str + ")$")
-ANDROID_PATTERN = re.compile(r"^(?:img_|vid_)?(\d{8}_\d{6})\.(" + ext_all_str + ")$")
+ANDROID_PATTERN = re.compile(r"^(?:img_|vid_)?(\d{8}_\d{6})(?:\d{3})?\.(" + ext_all_str + ")$")
 
 # Filename style: Linux Screen Shot
 # Regex: Screenshot from YYYY-MM-DD HH-MM-SS.ext
@@ -445,7 +445,7 @@ def process_media(target_input, recurse, adjacent, state_arg, location_arg, desc
             if os.path.abspath(new_path) == os.path.abspath(old_path) and not forced: continue
 
             try:
-                action = "adjacent" if source == "adjacent" else "renamed"
+                action = "renamed"
                 file_cnt += 1
                 if time_sequenced:
                     if not given_time:
@@ -544,7 +544,7 @@ def process_media(target_input, recurse, adjacent, state_arg, location_arg, desc
             with open(os.path.join(root, f"process_log_{datetime.now().strftime('%Y%m%d_%H%M%S')}.json"), 'w') as f:
                 json.dump(change_log, f, indent=4)
 
-    if file_cnt > 0: display_logs(target_input, verbose, all_subdirs=False)
+    if file_cnt > 0 and not recurse: display_logs(target_input, verbose, all_subdirs=False)
     action_str = "[SUMMARY]"
     print(f"{action_str:<11} Processed {file_cnt} matching files out of {file_eval} found")
 

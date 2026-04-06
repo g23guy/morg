@@ -265,7 +265,7 @@ def display_logs(target_path, verbose, all_subdirs):
         # Get latest log from each unique directory
         latest_per_dir = {}
         for l in logs: latest_per_dir[os.path.dirname(l)] = l
-        for lp in latest_per_dir.values(): (lp, verbose)
+        for lp in latest_per_dir.values(): print_log_table(lp, verbose)
     else:
         print_log_table(logs[-1], verbose)
 

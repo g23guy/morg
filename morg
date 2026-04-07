@@ -104,6 +104,22 @@ def get_mime_list(filepath):
         return [parts[0], parts[-1]]
     return ["unknown", "unknown"]
 
+def get_gpsinfo(filepath):
+    """Extracts GPS Latitude and Longitude using ExifToolHelper."""
+    gpsinfo = ''
+    try:
+        with exiftool.ExifToolHelper() as et:
+            # get_tags returns a list of dictionaries (one per image)
+            for d in et.get_tags(filepath, tags=['GPSLatitude', 'GPSLongitude']):
+                # Tags are prefixed with the group name (e.g., 'EXIF:')
+                lat = d.get('Composite:GPSLatitude')
+                lon = d.get('Composite:GPSLongitude')
+                
+                if lat is not None and lon is not None:
+                    gpsinfo = f"{lat},{lon}"
+    except Exception: pass
+    return gpsinfo
+
 def get_datetime(filepath):
     ext = os.path.splitext(filepath)[-1].lower()
     filename = os.path.basename(filepath)
@@ -237,6 +253,8 @@ def print_log_table(log_path, verbose):
         w_used = max(len(e['date_used']) for e in log_data)
         w_source = max(len(e['date_source']) for e in log_data)
         w_action = max(len(e['action']) for e in log_data)
+        w_gps = max(len(e['gps']) for e in log_data)
+        w_gps = max(w_gps, 3)
         w_orig, w_new = max(w_orig, 13), max(w_new, 8)
 
         print(f"\nLOG: {log_path}")
@@ -247,11 +265,11 @@ def print_log_table(log_path, verbose):
             for e in log_data:
                 print(f"{e['original_name']:<{w_orig}} | {e['new_name']:<{w_new}} | {e['action'].upper():<{w_action}} | {e['date_used']:<{w_used}} | {e['date_source']:<{w_source}} | {e['updated_datetime']['meta']:<4} | {e['updated_datetime']['fs']:<2} | {e['mime_type'][0]:<10}")
         else:
-            header = f"{'ORIGINAL_NAME':<{w_orig}} | {'NEW_NAME':<{w_new}} | {'ACTION':<{w_action}} | {'DATE':<{w_used}} | {'SOURCE':<{w_source}} | {'META':<4} | {'FS':<2} | {'TYPE':<10}"
+            header = f"{'ORIGINAL_NAME':<{w_orig}} | {'NEW_NAME':<{w_new}} | {'ACTION':<{w_action}} | {'DATE':<{w_used}} | {'SOURCE':<{w_source}} | {'META':<4} | {'FS':<2} | {'GPS':<{w_gps}} | {'TYPE':<10}"
             print(header)
             print("-" * len(header))
             for e in log_data:
-                print(f"{e['original_name']:<{w_orig}} | {e['new_name']:<{w_new}} | {e['action'].upper():<{w_action}} | {e['date_used']:<{w_used}} | {e['date_source']:<{w_source}} | {e['updated_datetime']['meta']:<4} | {e['updated_datetime']['fs']:<2} | {e['mime_type'][0]:<10}")
+                print(f"{e['original_name']:<{w_orig}} | {e['new_name']:<{w_new}} | {e['action'].upper():<{w_action}} | {e['date_used']:<{w_used}} | {e['date_source']:<{w_source}} | {e['updated_datetime']['meta']:<4} | {e['updated_datetime']['fs']:<2} | {e['gps'].upper():<{w_gps}} | {e['mime_type'][0]:<10}")
     except Exception as e:
         print(f"Error reading log {log_path}: {e}")
 
@@ -374,6 +392,7 @@ def filename_to_modification_dt(target, recurse, verbose):
                     "state": s_val, 
                     "location": l_val, 
                     "description": d_val,
+                    "gps": get_gpsinfo(this_path),
                     "mime_type": get_mime_list(this_path),
                     "updated_datetime": updated_datetime,
                     "date_used": dt.isoformat(), 
@@ -401,6 +420,7 @@ def process_media(target, recurse, adjacent, state_arg, location_arg, descriptio
     overridden = False
     file_cnt = 0
     file_eval = 0
+    gps_str = ''
     if given_date or given_time or time_sequenced: overridden = True
 
     dir_groups = {}
@@ -490,6 +510,7 @@ def process_media(target, recurse, adjacent, state_arg, location_arg, descriptio
                 if overridden:
                     updated_datetime = set_datetime(new_path, dt)
 
+                gps_str = get_gpsinfo(new_path)
                 change_log.append({
                     "original_name": filename, 
                     "original_path": os.path.abspath(old_path),
@@ -497,6 +518,7 @@ def process_media(target, recurse, adjacent, state_arg, location_arg, descriptio
                     "state": s_val, 
                     "location": l_val, 
                     "description": d_val,
+                    "gps": gps_str,
                     "mime_type": get_mime_list(new_path),
                     "updated_datetime": updated_datetime,
                     "date_used": dt.isoformat(), 
@@ -550,6 +572,7 @@ def process_media(target, recurse, adjacent, state_arg, location_arg, descriptio
                             "state": s_val, 
                             "location": l_val, 
                             "description": d_val,
+                            "gps": gps_str,
                             "mime_type": get_mime_list(new_path),
                             "updated_datetime": updated_datetime,
                             "date_used": dt.isoformat(), 

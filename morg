@@ -1,5 +1,5 @@
 #!/usr/bin/python3.12
-SVER = '0.6.0'
+SVER = '0.6.0_dev1'
 ##############################################################################
 # morg - Media Organizer
 # Copyright (C) 2026 Jason Record
@@ -210,9 +210,9 @@ def override_dt(dt_old, given_date, given_time):
     dt_new = datetime.strptime(dt_new_str, "%Y%m%d-%H%M%S")
     return dt_new, "override"
 
-def get_all_logs(target_path, recurse):
+def get_all_logs(target, recurse):
     logs = []
-    base_dir = target_path if os.path.isdir(target_path) else os.path.dirname(os.path.abspath(target_path))
+    base_dir = target['root']
     if recurse:
         for root, _, files in os.walk(base_dir):
             for f in files:
@@ -300,9 +300,39 @@ def reverse_last_session(target_path, recurse):
                     os.rename(curr, orig)
                     print(f"[REVERSED]  {e['new_name']} -> {e['original_name']}")
 
-def filename_to_modification_dt(target_input, recurse, verbose):
-    search_pattern = os.path.join(target_input, "**" if recurse else "", "*") if os.path.isdir(target_input) else target_input
-    files_to_process = glob.glob(search_pattern, recursive=recurse)
+def converted_from(old_path, root, tagged_base, target_ext):
+    return new_path, new_name
+
+def date_digits(value):
+    num = 8
+    """Validator to ensure string is {num} digits."""
+    if not (len(value) == num and value.isdigit()):
+        raise argparse.ArgumentTypeError(f"incorrect date value - '{value}', must be exactly {num} digits.")
+    return value
+
+def time_digits(value):
+    num = 6
+    """Validator to ensure string is {num} digits."""
+    if not (len(value) == num and value.isdigit()):
+        raise argparse.ArgumentTypeError(f"incorrect time value - '{value}', must be exactly {num} digits.")
+    return value
+
+def normalize_files_input(input_list):
+    output = {'list': [], 'single': '', 'root': ''}
+    src = os.path.abspath(input_list[0])
+    output['root'] = src if os.path.isdir(src) else os.path.dirname(src)
+    if len(input_list) > 1:
+        output['list'] = input_list
+    else:
+        output['single'] = src
+    return output
+
+def filename_to_modification_dt(target, recurse, verbose):
+    if target['single']:
+        search_pattern = os.path.join(target['single'], "**" if recurse else "", "*") if os.path.isdir(target['single']) else target['single']
+        files_to_process = glob.glob(search_pattern, recursive=recurse)
+    else:
+        files_to_process = target['list']
     file_cnt = 0
     file_eval = 0
 
@@ -361,15 +391,17 @@ def filename_to_modification_dt(target_input, recurse, verbose):
     action_str = "[SUMMARY]"
     print(f"{action_str:<11} Processed {file_cnt} matching files out of {file_eval} found")
 
-def process_media(target_input, recurse, adjacent, state_arg, location_arg, description_arg, given_date, given_time, time_sequenced, forced, convert, convert_remove, verbose):
+def process_media(target, recurse, adjacent, state_arg, location_arg, description_arg, given_date, given_time, time_sequenced, forced, convert, convert_remove, verbose):
     extensions = ext_all
-    search_pattern = os.path.join(target_input, "**" if recurse else "", "*") if os.path.isdir(target_input) else target_input
-    files_to_process = glob.glob(search_pattern, recursive=recurse)
+    if target['single']:
+        search_pattern = os.path.join(target['single'], "**" if recurse else "", "*") if os.path.isdir(target['single']) else target['single']
+        files_to_process = glob.glob(search_pattern, recursive=recurse)
+    else:
+        files_to_process = target['list']
     overridden = False
     file_cnt = 0
     file_eval = 0
-    if given_date or given_time: overridden = True
-    if time_sequenced: overridden = True
+    if given_date or given_time or time_sequenced: overridden = True
 
     dir_groups = {}
     for f_path in files_to_process:
@@ -548,24 +580,6 @@ def process_media(target_input, recurse, adjacent, state_arg, location_arg, desc
     action_str = "[SUMMARY]"
     print(f"{action_str:<11} Processed {file_cnt} matching files out of {file_eval} found")
 
-def converted_from(old_path, root, tagged_base, target_ext):
-    return new_path, new_name
-
-def date_digits(value):
-    num = 8
-    """Validator to ensure string is {num} digits."""
-    if not (len(value) == num and value.isdigit()):
-        raise argparse.ArgumentTypeError(f"incorrect date value - '{value}', must be exactly {num} digits.")
-    return value
-
-def time_digits(value):
-    num = 6
-    """Validator to ensure string is {num} digits."""
-    if not (len(value) == num and value.isdigit()):
-        raise argparse.ArgumentTypeError(f"incorrect time value - '{value}', must be exactly {num} digits.")
-    return value
-
-
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(
         description="Media Organizer, v" + SVER + "\n\n"
@@ -588,7 +602,7 @@ if __name__ == "__main__":
                     ,
         formatter_class=argparse.RawTextHelpFormatter
     )
-    parser.add_argument("folder", help="Target folder or file glob (e.g. '/media/*.jpg', quote globbing)")
+    parser.add_argument("files", nargs='+', help="Target folder or file glob (e.g. '/media/*.jpg', quote globbing)")
     parser.add_argument("-a", "--adjacent", action="store_true", help="Adjacent date logic")
     parser.add_argument("-c", "--convert", action="store_true", help="Convert " + ext_image_convert_str + " to jpg, and " + ext_video_convert_str + " to mp4. Converted files inherit source file date and time.")
     parser.add_argument("-C", "--convert-remove", action="store_true", help="Same as --convert and deletes the originals")
@@ -610,12 +624,14 @@ if __name__ == "__main__":
     if len(sys.argv) == 1: parser.print_help(); sys.exit(1)
     args = parser.parse_args()
 
+    target_input = normalize_files_input(args.files)
+
     if args.convert_remove: args.convert = True 
-    if args.original: restore_original_names(args.folder, args.recurse)
-    elif args.all_logs: display_logs(args.folder, args.verbose, all_subdirs=True)
-    elif args.log: display_logs(args.folder, args.verbose, all_subdirs=False)
-    elif args.reverse: reverse_last_session(args.folder, args.recurse)
-    elif args.modified: filename_to_modification_dt(args.folder, args.recurse, args.verbose)
-    else: process_media(args.folder, args.recurse, args.adjacent, args.state, args.location, args.description, args.yyyymmdd, args.hhmmss, args.time_sequenced, args.force, args.convert, args.convert_remove, args.verbose)
+    if args.original: restore_original_names(target_input, args.recurse)
+    elif args.all_logs: display_logs(target_input, args.verbose, all_subdirs=True)
+    elif args.log: display_logs(target_input, args.verbose, all_subdirs=False)
+    elif args.reverse: reverse_last_session(target_input, args.recurse)
+    elif args.modified: filename_to_modification_dt(target_input, args.recurse, args.verbose)
+    else: process_media(target_input, args.recurse, args.adjacent, args.state, args.location, args.description, args.yyyymmdd, args.hhmmss, args.time_sequenced, args.force, args.convert, args.convert_remove, args.verbose)
     
 

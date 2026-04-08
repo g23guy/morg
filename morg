@@ -80,7 +80,7 @@ mimetypes.add_type('audio/amr', '.amr')
 # group(2): [-State]
 # group(3): [-Location]
 # group(4): [-Description]
-FILENAME_PATTERN = re.compile(r"^(\d{8}-\d{6})(?:-([^-_\.]+))?(?:-([^-_\.]+))?(?:-([^-_\.]+))?(?:_(\d+))?\.(" + ext_all_str + ")$")
+FILENAME_PATTERN = re.compile(r"^(\d{8}-\d{6})(?:-([^-_\.]+))?(?:-([^-\.]+))?(?:-([^-\.]+))?(?:_(\d+))?\.(" + ext_all_str + ")$")
 
 # Filename style: Android
 # Regex: YYYYMMDD_HHMMSS.ext
@@ -175,7 +175,7 @@ def get_datetime(filepath):
     return datetime.fromtimestamp(os.path.getmtime(filepath)), "modified"
 
 def set_datetime(file_path, dt):
-    updated_datetime = {'meta': False, 'fs': False}
+    updated_datetime = {'meta': 0, 'fs': 0}
     ext = os.path.splitext(file_path)[-1].lower()
     dt_stamp = dt.timestamp()
     new_date = dt.strftime("%Y:%m:%d %H:%M:%S")
@@ -188,7 +188,7 @@ def set_datetime(file_path, dt):
                 exif_dict['Exif'][piexif.ExifIFD.DateTimeDigitized] = new_date.encode('utf-8')
                 exif_bytes = piexif.dump(exif_dict)
                 img.save(file_path, exif=exif_bytes)
-            updated_datetime['meta'] = True
+            updated_datetime['meta'] = 1
         except Exception: pass
 
     if ext in ext_videos or ext in ext_sounds:
@@ -203,12 +203,12 @@ def set_datetime(file_path, dt):
             with exiftool.ExifToolHelper() as et:
                 # Note: set_tags expects a list of files even if it's just one
                 et.set_tags([file_path], tags=tags_to_set, params=params)
-            updated_datetime['meta'] = True
+            updated_datetime['meta'] = 1
         except Exception: pass
 
     try:
         os.utime(file_path, (dt_stamp, dt_stamp))
-        updated_datetime['fs'] = True
+        updated_datetime['fs'] = 1
     except Exception: pass
 
     return updated_datetime
@@ -370,7 +370,7 @@ def filename_to_modification_dt(target, recurse, verbose):
         action = "updated"
         action_str = "[" + action.upper() + "]"
         source = "filename"
-        updated_datetime = {'meta': False, 'fs': False}
+        updated_datetime = {'meta': 0, 'fs': 0}
         for this_path in sorted(files):
             file_eval += 1
             filename = os.path.basename(this_path)
@@ -452,7 +452,7 @@ def process_media(target, recurse, adjacent, state_arg, location_arg, descriptio
 
     for root, files in dir_groups.items():
         change_log, last_date, last_source = [], None, None
-        updated_datetime = {'meta': False, 'fs': False}
+        updated_datetime = {'meta': 0, 'fs': 0}
         for old_path in sorted(files):
             file_eval += 1
             filename = os.path.basename(old_path)
@@ -544,7 +544,7 @@ def process_media(target, recurse, adjacent, state_arg, location_arg, descriptio
             except Exception as e: print(f"Error {filename}: {e}")
 
             if convert:
-                updated_datetime = {'meta': False, 'fs': False}
+                updated_datetime = {'meta': 0, 'fs': 0}
                 if ext in ext_images_convert or ext in ext_videos_convert: 
                     try:
                         action = "converted"

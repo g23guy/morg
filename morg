@@ -66,6 +66,8 @@ ext_videos_convert = tuple([f".{ext}" for ext in ext_video_convert_str.split('|'
 ext_sounds = tuple([f".{ext}" for ext in ext_sound_str.split('|')])
 ext_all = tuple([f".{ext}" for ext in ext_all_str.split('|')])
 
+summary_file = '0-summary.txt'
+
 # Setup HEIF and MIME
 pillow_heif.register_heif_opener()
 mimetypes.add_type('image/heic', '.heic')
@@ -106,7 +108,7 @@ def get_mime_list(filepath):
 
 def get_gpsinfo(filepath):
     """Extracts GPS Latitude and Longitude using ExifToolHelper."""
-    gpsinfo = ''
+    gpsinfo = 'None'
     try:
         with exiftool.ExifToolHelper() as et:
             # get_tags returns a list of dictionaries (one per image)
@@ -269,7 +271,7 @@ def print_log_table(log_path, verbose):
             print(header)
             print("-" * len(header))
             for e in log_data:
-                print(f"{e['original_name']:<{w_orig}} | {e['new_name']:<{w_new}} | {e['action'].upper():<{w_action}} | {e['date_used']:<{w_used}} | {e['date_source']:<{w_source}} | {e['updated_datetime']['meta']:<4} | {e['updated_datetime']['fs']:<2} | {e['gps'].upper():<{w_gps}} | {e['mime_type'][0]:<10}")
+                print(f"{e['original_name']:<{w_orig}} | {e['new_name']:<{w_new}} | {e['action'].upper():<{w_action}} | {e['date_used']:<{w_used}} | {e['date_source']:<{w_source}} | {e['updated_datetime']['meta']:<4} | {e['updated_datetime']['fs']:<2} | {e['gps']:<{w_gps}} | {e['mime_type'][0]:<10}")
     except Exception as e:
         print(f"Error reading log {log_path}: {e}")
 
@@ -290,6 +292,7 @@ def display_logs(target_path, verbose, all_subdirs):
 def restore_original_names(target_path, recurse):
     # once files are converted, they are not converted back
     logs = get_all_logs(target_path, recurse)
+    summary_path = os.path.join(target_path['root'], summary_file)
     if not logs: return
     logs.reverse()
     for log_path in logs:
@@ -304,6 +307,7 @@ def restore_original_names(target_path, recurse):
                         os.rename(curr, orig)
                         print(f"[RESTORED]  {entry['new_name']} -> {entry['original_name']}")
     for log_path in logs: os.remove(log_path)
+    os.remove(summary_path)
 
 def reverse_last_session(target_path, recurse):
     # once files are converted, they are not converted back
@@ -403,8 +407,16 @@ def filename_to_modification_dt(target, recurse, verbose):
                 print(f"{new_name}")
 
         if change_log:
-            with open(os.path.join(root, f"process_log_{datetime.now().strftime('%Y%m%d_%H%M%S')}.json"), 'w') as f:
+            dtnow = datetime.now().strftime('%Y%m%d_%H%M%S')
+            summary_path = os.path.join(root, summary_file)
+            with open(os.path.join(root, f"process_log_{dtnow}.json"), 'w') as f:
                 json.dump(change_log, f, indent=4)
+            with open(summary_path, 'w') as sf:
+                sf.write(f'Summary Date: {dtnow}\n')
+                sf.write(f'Summary For:  {root}\n\n')
+                for e in change_log:
+                    formatted_line = f"Filename: {e['new_name']}, Action: {e['action'].upper()}, Date: {e['date_used']}, Source: {e['date_source']}, Meta: {e['updated_datetime']['meta']}, FS: {e['updated_datetime']['fs']}, GPS: {e['gps']}, Type: {e['mime_type'][0]}\n"
+                    sf.write(formatted_line)
 
     if file_cnt > 0: display_logs(target_input, verbose, all_subdirs=False)
     action_str = "[SUMMARY]"
@@ -625,14 +637,14 @@ if __name__ == "__main__":
                     ,
         formatter_class=argparse.RawTextHelpFormatter
     )
-    parser.add_argument("files", nargs='+', help="Target folder or file glob (e.g. '/media/*.jpg', quote globbing)")
+    parser.add_argument("file", nargs='+', help="Target folder or file(s) (e.g. /media/*.jpg)")
     parser.add_argument("-a", "--adjacent", action="store_true", help="Adjacent date logic")
     parser.add_argument("-c", "--convert", action="store_true", help="Convert " + ext_image_convert_str + " to jpg, and " + ext_video_convert_str + " to mp4. Converted files inherit source file date and time.")
     parser.add_argument("-C", "--convert-remove", action="store_true", help="Same as --convert and deletes the originals")
     parser.add_argument("-r", "--recurse", action="store_true", help="Recurse subdirs")
     parser.add_argument("-f", "--force", action="store_true", help="Force evaluating files, even if previously renamed")
     parser.add_argument("-e", "--reverse", action="store_true", help="Reverse last session")
-    parser.add_argument("-m", "--modified", action="store_true", help="Use the current filename to update the file creation/modification/access date/time")
+    parser.add_argument("-m", "--modified", action="store_true", help=f"Use the current filename to update the file creation/modification/access date/time, then write {summary_file}")
     parser.add_argument("-o", "--original", action="store_true", help="Restore original filenames and delete logs")
     parser.add_argument("-g", "--log", action="store_true", help="Display latest JSON log summary")
     parser.add_argument("-G", "--all-logs", action="store_true", help="Display latest JSON log summary in all subdirs")
@@ -647,7 +659,7 @@ if __name__ == "__main__":
     if len(sys.argv) == 1: parser.print_help(); sys.exit(1)
     args = parser.parse_args()
 
-    target_input = normalize_files_input(args.files)
+    target_input = normalize_files_input(args.file)
 
     if args.convert_remove: args.convert = True 
     if args.original: restore_original_names(target_input, args.recurse)

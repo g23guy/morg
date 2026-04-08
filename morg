@@ -420,7 +420,7 @@ def filename_to_modification_dt(target, recurse, verbose):
 
     if file_cnt > 0: display_logs(target_input, verbose, all_subdirs=False)
     action_str = "[SUMMARY]"
-    print(f"{action_str:<11} Processed {file_cnt} matching files out of {file_eval} found")
+    print(f"{action_str:<11} Processed {file_cnt} matching files out of {file_eval} found\n")
 
 def process_media(target, recurse, adjacent, state_arg, location_arg, description_arg, given_date, given_time, time_sequenced, forced, convert, convert_remove, verbose):
     extensions = ext_all
@@ -613,13 +613,12 @@ def process_media(target, recurse, adjacent, state_arg, location_arg, descriptio
 
     if file_cnt > 0 and not recurse: display_logs(target_input, verbose, all_subdirs=False)
     action_str = "[SUMMARY]"
-    print(f"{action_str:<11} Processed {file_cnt} matching files out of {file_eval} found")
+    print(f"{action_str:<11} Processed {file_cnt} matching files out of {file_eval} found\n")
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(
         description="Media Organizer, v" + SVER + "\n\n"
-                    "Renames media files to match the format:\n"
-                    "  YYYYMMDD-HHMMSS[-State][-Location][-Description](_#).ext\n\n"
+                    "Renames media files to match the format: YYYYMMDD-HHMMSS[-State][-Location][-Description](_#).ext\n\n"
                     "Supported media extensions\n"
                     " Images:      " + ext_image_str + "\n"
                     "  Convert:    " + ext_image_convert_str + " to jpg\n"
@@ -629,11 +628,8 @@ if __name__ == "__main__":
                     "Source date/time for renaming media files:\n"
                     " Priority 1: Override with -D/-T command options\n"
                     " Priority 2: The original date/time in the media metadata\n"
-                    " Priority 3: Supported filename styles - android, sslinux, sswin\n"
+                    " Priority 3: Supported filename style: android, sslinux, sswin\n"
                     " Priority 4: Filesystem modification date/time\n\n"
-                    "Using -D or -T alone causes the missing value to be extracted from the file. Overridden dates\n"
-                    "and times are written to the filesystem access and modification times to applicable files. An\n"
-                    "attempt is also made to write the overridden date/time as the original date/time in the media metadata."
                     ,
         formatter_class=argparse.RawTextHelpFormatter
     )
@@ -649,9 +645,9 @@ if __name__ == "__main__":
     parser.add_argument("-g", "--log", action="store_true", help="Display latest JSON log summary")
     parser.add_argument("-G", "--all-logs", action="store_true", help="Display latest JSON log summary in all subdirs")
     parser.add_argument("-v", "--verbose", action="store_true", help="Enables verbose output")
-    parser.add_argument("-s", "--state", help="State tag")
-    parser.add_argument("-l", "--location", help="Location tag")
-    parser.add_argument("-d", "--description", help="Description tag")
+    parser.add_argument("-s", "--state", help="State tag, Unsupported [-._]")
+    parser.add_argument("-l", "--location", help="Location tag, Unsupported [-.]")
+    parser.add_argument("-d", "--description", help="Description tag, Unsupported [-.]")
     parser.add_argument("-D", "--yyyymmdd", type=date_digits, help="Override meta creation(if possible) and filesystem modification date value, requires 8 digits")
     parser.add_argument("-T", "--hhmmss", type=time_digits, help="Override meta creation(if possible) and filesystem modification time value, requires 6 digits")
     parser.add_argument("-t", "--time-sequenced", action="store_true", help="Use -T/--hhmmss time if given or the first file's time, and increment it for sebsequent files")

@@ -657,7 +657,7 @@ def get_template_filename(root, tagged_base, target_ext):
     old_path = os.path.join(root, new_name)
     new_path = old_path
     if os.path.exists(new_path):
-        new_name = f"{tagged_base}{target_ext}.template"
+        new_name = f"{tagged_base}.template{target_ext}"
         new_path = os.path.join(root, new_name)
     return new_path
 
@@ -678,7 +678,7 @@ def save_template_md(data):
 def notice(string):
     print(f"{'[NOTICE]':<11} {string}")
 
-def create_templates(target, recurse, all_tags):
+def create_templates(target, recurse):
     notice("Creating Description Templates")
     dir_groups = get_dir_groups(target, recurse)
     map_height = '200m'
@@ -740,6 +740,7 @@ def create_templates(target, recurse, all_tags):
             }
             print(f"{'[TEMPLATE]':<11} {file_data['doc_name']}")
             save_template_md(file_data)
+    print()
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(
@@ -790,11 +791,11 @@ if __name__ == "__main__":
     target_input = normalize_files_input(args.file)
     if args.convert_remove: args.convert = True 
 
-    if args.original: restore_original_names(target_input, args.recurse)
-    elif args.all_logs: display_logs(target_input, args.verbose, all_subdirs=True)
     elif args.log: display_logs(target_input, args.verbose, all_subdirs=False)
-    elif args.template: create_templates(target_input, args.recurse, all_tags=False)
+    elif args.all_logs: display_logs(target_input, args.verbose, all_subdirs=True)
+    elif args.template: create_templates(target_input, args.recurse)
     elif args.reverse: reverse_last_session(target_input, args.recurse)
+    elif args.original: restore_original_names(target_input, args.recurse)
     elif args.modified: filename_to_modification_dt(target_input, args.recurse, args.verbose)
     else: process_media(target_input, args.recurse, args.adjacent, args.state, args.location, args.description, args.yyyymmdd, args.hhmmss, args.time_sequenced, args.force, args.convert, args.convert_remove, args.verbose)
     

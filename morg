@@ -434,7 +434,7 @@ def create_templates(target, recurse):
     notice("Creating Description Templates")
     dir_groups = get_dir_groups(target, recurse)
     map_height = '200m'
-    url_base = "https://www.google.com/maps/place"
+    url_base = "https://www.google.com/maps"
     for root, files in dir_groups.items():
         print(f"{'[DIR]':<11} {root}")
         action = "template"
@@ -465,14 +465,18 @@ def create_templates(target, recurse):
             gps_url = "None"
             if l_val in LOCATION_TAG:
                 if gps_str == 'None':
+                    # Use the gps data from known addresses if not found in the image
                     gps_str = LOCATION_TAG[l_val]['gps']
 
                 if gps_str != "None":
                     place = LOCATION_TAG[l_val]['addr'].replace(" ", "+")
-                    gps_url = f"{url_base}/{place}/@{gps_str},{map_height}"
-                    # Example:
-                    # https://www.google.com/maps/place/2344+East+1120+South,+Spanish+Fork,+UT+84660/@40.09501897424211,-111.61557782129908,200m
-                
+                    if place != "Unknown":
+                        # https://www.google.com/maps/place/2344+East+1120+South,+Spanish+Fork,+UT+84660/@40.09501897424211,-111.61557782129908,200m
+                        gps_url = f"{url_base}/place/{place}/@{gps_str},{map_height}"
+            else:
+                if gps_str != 'None':
+                    # https://www.google.com/maps/search/?api=1&query=40.09501897424211,-111.61557782129908
+                    gps_url = f"{url_base}/search/?api=1&query={gps_str}"
 
             file_data = {
                 "ref_name": filename, 

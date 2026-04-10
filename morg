@@ -261,6 +261,58 @@ def override_dt(dt_old, given_date, given_time):
     dt_new = datetime.strptime(dt_new_str, "%Y%m%d-%H%M%S")
     return dt_new, "override"
 
+def converted_from(old_path, root, tagged_base, target_ext):
+    return new_path, new_name
+
+def date_digits(value):
+    num = 8
+    """Validator to ensure string is {num} digits."""
+    if not (len(value) == num and value.isdigit()):
+        raise argparse.ArgumentTypeError(f"incorrect date value - '{value}', must be exactly {num} digits.")
+    return value
+
+def time_digits(value):
+    num = 6
+    """Validator to ensure string is {num} digits."""
+    if not (len(value) == num and value.isdigit()):
+        raise argparse.ArgumentTypeError(f"incorrect time value - '{value}', must be exactly {num} digits.")
+    return value
+
+def normalize_files_input(input_list):
+    output = {'list': [], 'single': '', 'root': ''}
+    src = os.path.abspath(input_list[0])
+    output['root'] = src if os.path.isdir(src) else os.path.dirname(src)
+    if len(input_list) > 1:
+        output['list'] = input_list
+    else:
+        output['single'] = src
+    return output
+
+def get_dir_groups(target, recurse):
+    dir_groups = {}
+    if target['single']:
+        search_pattern = os.path.join(target['single'], "**" if recurse else "", "*") if os.path.isdir(target['single']) else target['single']
+        files_to_process = glob.glob(search_pattern, recursive=recurse)
+    else:
+        files_to_process = target['list']
+
+    for f_path in files_to_process:
+        if os.path.isfile(f_path):
+            d = os.path.dirname(os.path.abspath(f_path))
+            if d not in dir_groups: dir_groups[d] = []
+            dir_groups[d].append(f_path)
+
+    return dir_groups
+
+def get_template_filename(root, tagged_base, target_ext):
+    new_name = f"{tagged_base}{target_ext}"
+    old_path = os.path.join(root, new_name)
+    new_path = old_path
+    if os.path.exists(new_path):
+        new_name = f"{tagged_base}.template{target_ext}"
+        new_path = os.path.join(root, new_name)
+    return new_path
+
 def get_all_logs(target, recurse):
     logs = []
     base_dir = target['root']
@@ -324,6 +376,21 @@ def display_logs(target_path, verbose, all_subdirs):
         print_log_table(logs[-1], verbose)
     print()
 
+def reverse_last_session(target_path, recurse):
+    notice("Restoring Media Files from Last Session, Except Converted Files")
+    # once files are converted, they are not converted back
+    logs = get_all_logs(target_path, recurse)
+    if logs:
+        with open(logs[-1], 'r') as f:
+            for e in json.load(f):
+                curr, orig = os.path.join(os.path.dirname(logs[-1]), e['new_name']), os.path.join(os.path.dirname(logs[-1]), e['original_name'])
+                if e.get('action') == 'converted':
+                    print(f"[CONVERTED] {e['original_name']} -> {e['new_name']}: Cannot be reversed")
+                elif os.path.exists(curr): 
+                    os.rename(curr, orig)
+                    print(f"[REVERSED]  {e['new_name']} -> {e['original_name']}")
+        print()
+
 def restore_original_names(target_path, recurse):
     notice("Restoring Media Files to the Original Names, Except Converted Files")
     # once files are converted, they are not converted back
@@ -345,73 +412,6 @@ def restore_original_names(target_path, recurse):
     for log_path in logs: os.remove(log_path)
     if os.path.exists(summary_path): os.remove(summary_path)
     print()
-
-def reverse_last_session(target_path, recurse):
-    notice("Restoring Media Files from Last Session, Except Converted Files")
-    # once files are converted, they are not converted back
-    logs = get_all_logs(target_path, recurse)
-    if logs:
-        with open(logs[-1], 'r') as f:
-            for e in json.load(f):
-                curr, orig = os.path.join(os.path.dirname(logs[-1]), e['new_name']), os.path.join(os.path.dirname(logs[-1]), e['original_name'])
-                if e.get('action') == 'converted':
-                    print(f"[CONVERTED] {e['original_name']} -> {e['new_name']}: Cannot be reversed")
-                elif os.path.exists(curr): 
-                    os.rename(curr, orig)
-                    print(f"[REVERSED]  {e['new_name']} -> {e['original_name']}")
-        print()
-
-def converted_from(old_path, root, tagged_base, target_ext):
-    return new_path, new_name
-
-def date_digits(value):
-    num = 8
-    """Validator to ensure string is {num} digits."""
-    if not (len(value) == num and value.isdigit()):
-        raise argparse.ArgumentTypeError(f"incorrect date value - '{value}', must be exactly {num} digits.")
-    return value
-
-def time_digits(value):
-    num = 6
-    """Validator to ensure string is {num} digits."""
-    if not (len(value) == num and value.isdigit()):
-        raise argparse.ArgumentTypeError(f"incorrect time value - '{value}', must be exactly {num} digits.")
-    return value
-
-def normalize_files_input(input_list):
-    output = {'list': [], 'single': '', 'root': ''}
-    src = os.path.abspath(input_list[0])
-    output['root'] = src if os.path.isdir(src) else os.path.dirname(src)
-    if len(input_list) > 1:
-        output['list'] = input_list
-    else:
-        output['single'] = src
-    return output
-
-def get_dir_groups(target, recurse):
-    dir_groups = {}
-    if target['single']:
-        search_pattern = os.path.join(target['single'], "**" if recurse else "", "*") if os.path.isdir(target['single']) else target['single']
-        files_to_process = glob.glob(search_pattern, recursive=recurse)
-    else:
-        files_to_process = target['list']
-
-    for f_path in files_to_process:
-        if os.path.isfile(f_path):
-            d = os.path.dirname(os.path.abspath(f_path))
-            if d not in dir_groups: dir_groups[d] = []
-            dir_groups[d].append(f_path)
-
-    return dir_groups
-
-def get_template_filename(root, tagged_base, target_ext):
-    new_name = f"{tagged_base}{target_ext}"
-    old_path = os.path.join(root, new_name)
-    new_path = old_path
-    if os.path.exists(new_path):
-        new_name = f"{tagged_base}.template{target_ext}"
-        new_path = os.path.join(root, new_name)
-    return new_path
 
 def save_template_md(data):
     with open(data['doc_path'], 'w') as f:
@@ -501,6 +501,7 @@ def filename_to_modification_dt(target, recurse, verbose):
     dir_groups = get_dir_groups(target, recurse)
 
     for root, files in dir_groups.items():
+        print(f"{'[DIR]':<11} {root}")
         change_log = []
         action = "updated"
         action_str = "[" + action.upper() + "]"
@@ -577,6 +578,7 @@ def process_media(target_input, recurse, adjacent, state_arg, location_arg, desc
         except Exception: continue
 
     for root, files in dir_groups.items():
+        print(f"{'[DIR]':<11} {root}")
         change_log, last_date, last_source = [], None, None
         updated_datetime = {'meta': 0, 'fs': 0}
         for old_path in sorted(files):

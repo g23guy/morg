@@ -404,6 +404,96 @@ def get_dir_groups(target, recurse):
 
     return dir_groups
 
+def get_template_filename(root, tagged_base, target_ext):
+    new_name = f"{tagged_base}{target_ext}"
+    old_path = os.path.join(root, new_name)
+    new_path = old_path
+    if os.path.exists(new_path):
+        new_name = f"{tagged_base}.template{target_ext}"
+        new_path = os.path.join(root, new_name)
+    return new_path
+
+def save_template_md(data):
+    with open(data['doc_path'], 'w') as f:
+        loc = LOCATION_TAG[data['location']]['addr'] if data['location'] in LOCATION_TAG else "Unknown"
+        if data['first_year'] == 0:
+            f.write(f"# {data['address']}\n\n")
+        elif data['last_year'] == 0:
+            f.write(f"# {data['address']} _({data['first_year']})_\n\n")
+        else:
+            f.write(f"# {data['address']} _({data['first_year']}-{data['last_year']})_\n\n")
+        f.write(f"Reference File: {data['ref_name']}\n\n")
+        if data['gps'] != 'None': 
+            f.write(f"GPS Coordinates: [{data['gps']}]({data['gps_url']})\n\n")
+        f.write(f"Description: {data['description']}\n\n")
+
+def notice(string):
+    print(f"{'[NOTICE]':<11} {string}")
+
+def create_templates(target, recurse):
+    notice("Creating Description Templates")
+    dir_groups = get_dir_groups(target, recurse)
+    map_height = '200m'
+    url_base = "https://www.google.com/maps/place"
+    for root, files in dir_groups.items():
+        print(f"{'[DIR]':<11} {root}")
+        action = "template"
+        action_str = "[" + action.upper() + "]"
+        source = "filename"
+
+        unique_files = {}
+        # Create the list of files needing templates
+        for this_path in sorted(files, reverse=True):
+            filename = os.path.basename(this_path).lower()
+            match = FILENAME_PATTERN.match(filename)
+            d_val = match.group(4) if match else "None"
+
+            if match:
+                if d_val not in unique_files:
+                    unique_files[d_val] = filename
+
+        # Create the template for each unique_files
+        for old_path in unique_files.values():
+            filename = os.path.basename(old_path).lower()
+            tagged_base, target_ext = os.path.splitext(filename)[0], ".md"
+            new_path = get_template_filename(root, tagged_base, target_ext)
+            match = FILENAME_PATTERN.match(filename.lower())
+            s_val = match.group(2) if match else "None"
+            l_val = match.group(3) if match else "None"
+            d_val = match.group(4) if match else "None"
+            gps_str = get_gpsinfo(old_path)
+            gps_url = "None"
+            if l_val in LOCATION_TAG:
+                if gps_str == 'None':
+                    gps_str = LOCATION_TAG[l_val]['gps']
+
+                if gps_str != "None":
+                    place = LOCATION_TAG[l_val]['addr'].replace(" ", "+")
+                    gps_url = f"{url_base}/{place}/@{gps_str},{map_height}"
+                    # Example:
+                    # https://www.google.com/maps/place/2344+East+1120+South,+Spanish+Fork,+UT+84660/@40.09501897424211,-111.61557782129908,200m
+                
+
+            file_data = {
+                "ref_name": filename, 
+                "doc_path": new_path,
+                "doc_name": os.path.basename(new_path),
+                "state": s_val,
+                "location": l_val, 
+                "description": d_val,
+                "gps": gps_str,
+                "gps_url": gps_url,
+                "address": LOCATION_TAG[l_val]['addr'] if l_val in LOCATION_TAG else "Unknown",
+                "first_year": LOCATION_TAG[l_val]['begin'] if l_val in LOCATION_TAG else 0,
+                "last_year": LOCATION_TAG[l_val]['end'] if l_val in LOCATION_TAG else 0,
+                "data_source": source, 
+                "action": action, 
+                "status": "success"
+            }
+            print(f"{'[TEMPLATE]':<11} {file_data['doc_name']}")
+            save_template_md(file_data)
+    print()
+
 def filename_to_modification_dt(target, recurse, verbose):
     notice("Modifing Media Files")
     file_cnt = 0
@@ -651,96 +741,6 @@ def process_media(target_input, recurse, adjacent, state_arg, location_arg, desc
     if file_cnt > 0 and not recurse: display_logs(target_input, verbose, all_subdirs=False)
     action_str = "[SUMMARY]"
     print(f"{action_str:<11} Processed {file_cnt} matching files out of {file_eval} found\n")
-
-def get_template_filename(root, tagged_base, target_ext):
-    new_name = f"{tagged_base}{target_ext}"
-    old_path = os.path.join(root, new_name)
-    new_path = old_path
-    if os.path.exists(new_path):
-        new_name = f"{tagged_base}.template{target_ext}"
-        new_path = os.path.join(root, new_name)
-    return new_path
-
-def save_template_md(data):
-    with open(data['doc_path'], 'w') as f:
-        loc = LOCATION_TAG[data['location']]['addr'] if data['location'] in LOCATION_TAG else "Unknown"
-        if data['first_year'] == 0:
-            f.write(f"# {data['address']}\n\n")
-        elif data['last_year'] == 0:
-            f.write(f"# {data['address']} _({data['first_year']})_\n\n")
-        else:
-            f.write(f"# {data['address']} _({data['first_year']}-{data['last_year']})_\n\n")
-        f.write(f"Reference File: {data['ref_name']}\n\n")
-        if data['gps'] != 'None': 
-            f.write(f"GPS Coordinates: [{data['gps']}]({data['gps_url']})\n\n")
-        f.write(f"Description: {data['description']}\n\n")
-
-def notice(string):
-    print(f"{'[NOTICE]':<11} {string}")
-
-def create_templates(target, recurse):
-    notice("Creating Description Templates")
-    dir_groups = get_dir_groups(target, recurse)
-    map_height = '200m'
-    url_base = "https://www.google.com/maps/place"
-    for root, files in dir_groups.items():
-        print(f"{'[DIR]':<11} {root}")
-        action = "template"
-        action_str = "[" + action.upper() + "]"
-        source = "filename"
-
-        unique_files = {}
-        # Create the list of files needing templates
-        for this_path in sorted(files, reverse=True):
-            filename = os.path.basename(this_path).lower()
-            match = FILENAME_PATTERN.match(filename)
-            d_val = match.group(4) if match else "None"
-
-            if match:
-                if d_val not in unique_files:
-                    unique_files[d_val] = filename
-
-        # Create the template for each unique_files
-        for old_path in unique_files.values():
-            filename = os.path.basename(old_path).lower()
-            tagged_base, target_ext = os.path.splitext(filename)[0], ".md"
-            new_path = get_template_filename(root, tagged_base, target_ext)
-            match = FILENAME_PATTERN.match(filename.lower())
-            s_val = match.group(2) if match else "None"
-            l_val = match.group(3) if match else "None"
-            d_val = match.group(4) if match else "None"
-            gps_str = get_gpsinfo(old_path)
-            gps_url = "None"
-            if l_val in LOCATION_TAG:
-                if gps_str == 'None':
-                    gps_str = LOCATION_TAG[l_val]['gps']
-
-                if gps_str != "None":
-                    place = LOCATION_TAG[l_val]['addr'].replace(" ", "+")
-                    gps_url = f"{url_base}/{place}/@{gps_str},{map_height}"
-                    # Example:
-                    # https://www.google.com/maps/place/2344+East+1120+South,+Spanish+Fork,+UT+84660/@40.09501897424211,-111.61557782129908,200m
-                
-
-            file_data = {
-                "ref_name": filename, 
-                "doc_path": new_path,
-                "doc_name": os.path.basename(new_path),
-                "state": s_val,
-                "location": l_val, 
-                "description": d_val,
-                "gps": gps_str,
-                "gps_url": gps_url,
-                "address": LOCATION_TAG[l_val]['addr'] if l_val in LOCATION_TAG else "Unknown",
-                "first_year": LOCATION_TAG[l_val]['begin'] if l_val in LOCATION_TAG else 0,
-                "last_year": LOCATION_TAG[l_val]['end'] if l_val in LOCATION_TAG else 0,
-                "data_source": source, 
-                "action": action, 
-                "status": "success"
-            }
-            print(f"{'[TEMPLATE]':<11} {file_data['doc_name']}")
-            save_template_md(file_data)
-    print()
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(

@@ -1,5 +1,5 @@
 #!/usr/bin/python3.12
-SVER = '0.8.0'
+SVER = '0.8.0_dev'
 ##############################################################################
 # morg - Media Organizer
 # Copyright (C) 2026 Jason Record
@@ -75,6 +75,7 @@ LOCATION_TAG = {
 'slc': {'begin': 0, 'end': 0, 'addr': "Salt Lake City, UT", 'gps': 'None'},
 'stg': {'begin': 0, 'end': 0, 'addr': "St George, UT", 'gps': 'None'},
 'rc825': {'begin': 0, 'end': 0, 'addr': "825 Paradise Drive, Ridgecrest, CA 93555", 'gps': '35.636618004991874,-117.69183314365613'},
+'cl153': {'begin': 0, 'end': 0, 'addr': "153 Heather Ln NW, Cleveland, TN 37311", 'gps': '35.17412963875532,-84.9004669604066'},
 'af412': {'begin': 1995, 'end': 1999, 'addr': "412 North 520 West, American Fork, UT 84003", 'gps': '40.385723114562275,-111.81170161789726'},
 'salem381': {'begin': 1999, 'end': 2004, 'addr': "381 West 90 South, Salem, UT 84653", 'gps': '40.05388425398461,-111.68101740256654'},
 'sf2344': {'begin': 2004, 'end': 2012, 'addr': "2344 East 1120 South, Spanish Fork, UT 84660", 'gps': '40.09501897424211,-111.61557782129908'},
@@ -89,7 +90,7 @@ LOCATION_TAG = {
 # Supported extensions
 ext_image_str = "jpg|jpeg|png|bmp|tif|tiff|heic|webp|pgm|ppm|pmb|pnm|jfif|jp2|j2k|jxl|xcf"
 ext_image_convert_str = "heic|tiff|tif"
-ext_video_str = "mp4|mov|avi|mkv|wmv|webm|3gp"
+ext_video_str = "mp4|mov|mpg|avi|mkv|wmv|webm|3gp"
 ext_video_convert_str = "mov"
 ext_sound_str = "mp3|wav|snd|m4a|aac|aiff|flac|ogg|amr|mp2"
 ext_all_str = "|".join([ext_image_str, ext_video_str, ext_sound_str])

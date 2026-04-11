@@ -430,7 +430,8 @@ def save_template_md(data):
         f.write(f"Reference File: {data['ref_name']}\n\n")
         if data['gps'] != 'None': 
             f.write(f"GPS Coordinates: [{data['gps']}]({data['gps_url']})\n\n")
-        f.write(f"Description: {data['description']}\n\n")
+        text = data['description'].replace('_', ' ').title()
+        f.write(f"Description: {text}\n\n-")
     print(f"{'[TEMPLATE]':<11} {data['doc_name']}")
 
 def save_md2html(data):
@@ -516,7 +517,7 @@ def create_templates(target, recurse):
                 "status": "success"
             }
             save_template_md(file_data)
-            save_md2html(file_data)
+#            save_md2html(file_data)
     print()
 
 def filename_to_modification_dt(target, recurse, verbose):

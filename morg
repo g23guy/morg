@@ -588,9 +588,9 @@ def filename_to_modification_dt(target, recurse, verbose):
             with open(summary_path, 'w') as sf:
                 sf.write(f'<html><head><meta name="robots" content="none">\n')
                 sf.write(f'<title>Summary</title>\n')
-                sf.write(f'<style>table {{ border-collapse: separate; border-spacing: 25px 0px; }}</style>\n')
+                sf.write(f'<style>table {{ border-collapse: separate; border-spacing: 15px 0px; }}</style>\n')
                 sf.write(f'</head>\n')
-                sf.write(f'<body><h4 align="center">Summary</h4>\n')
+                sf.write(f'<body><h1 align="center">Summary</h1>\n')
                 sf.write(f'<center><table><tr><td>Summary Date:</td><td>{dtnow}</td></tr>\n')
                 sf.write(f'<tr><td>Summary For:</td><td>{root}</td></tr></table><br>\n')
                 sf.write(f'<table><tr><th>Filename</th><th>Action</th><th>Date</th><th>Source</th><th>Meta</th><th>FS</th><th>GPS</th><th>Type</th></tr>\n')

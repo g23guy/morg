@@ -61,30 +61,38 @@ from PIL import Image
 from PIL.ExifTags import TAGS
 import moviepy.editor as mp
 
+# url 1: https://www.google.com/maps/place/street+city+state+zip/@lat,lon,200m
+# url 2: https://www.google.com/maps/search/?api=1&query=lat,lon
 LOCATION_TAG = {
-'None': {'begin': 0, 'end': 0, 'addr': "Unknown", 'gps': 'None'},
-'af': {'begin': 0, 'end': 0, 'addr': "American Fork, UT", 'gps': 'None'},
-'cedar': {'begin': 0, 'end': 0, 'addr': "Cedar City, UT", 'gps': 'None'},
-'lehi': {'begin': 0, 'end': 0, 'addr': "Lehi, UT", 'gps': 'None'},
-'orem': {'begin': 0, 'end': 0, 'addr': "Orem, UT", 'gps': 'None'},
-'pg': {'begin': 0, 'end': 0, 'addr': "Pleasant Grove, UT", 'gps': 'None'},
-'provo': {'begin': 0, 'end': 0, 'addr': "Provo, UT", 'gps': 'None'},
-'rc': {'begin': 0, 'end': 0, 'addr': "Ridgecrest, CA", 'gps': 'None'},
-'salem': {'begin': 0, 'end': 0, 'addr': "Salem, UT", 'gps': 'None'},
-'sf': {'begin': 0, 'end': 0, 'addr': "Spanish Fork, UT", 'gps': 'None'},
-'slc': {'begin': 0, 'end': 0, 'addr': "Salt Lake City, UT", 'gps': 'None'},
-'stg': {'begin': 0, 'end': 0, 'addr': "St George, UT", 'gps': 'None'},
-'rc825': {'begin': 0, 'end': 0, 'addr': "825 Paradise Drive, Ridgecrest, CA 93555", 'gps': '35.636618004991874,-117.69183314365613'},
-'cl153': {'begin': 0, 'end': 0, 'addr': "153 Heather Ln NW, Cleveland, TN 37311", 'gps': '35.17412963875532,-84.9004669604066'},
-'af412': {'begin': 1995, 'end': 1999, 'addr': "412 North 520 West, American Fork, UT 84003", 'gps': '40.385723114562275,-111.81170161789726'},
-'salem381': {'begin': 1999, 'end': 2004, 'addr': "381 West 90 South, Salem, UT 84653", 'gps': '40.05388425398461,-111.68101740256654'},
-'sf2344': {'begin': 2004, 'end': 2012, 'addr': "2344 East 1120 South, Spanish Fork, UT 84660", 'gps': '40.09501897424211,-111.61557782129908'},
-'sf2087': {'begin': 2012, 'end': 2016, 'addr': "2087 East 30 North, Spanish Fork, UT 84660", 'gps': '40.11059005306335,-111.61939406023592'},
-'payson322': {'begin': 2016, 'end': 2017, 'addr': "1045 South 1700 West #322, Payson, UT 84651", 'gps': '40.027153115187446,-111.76237033696721'},
-'salem934': {'begin': 2017, 'end': 2018, 'addr': "934 South 140 East, Salem, UT 84653", 'gps': '40.04021877168592,-111.67113360191078'},
-'hurr802': {'begin': 2018, 'end': 2020, 'addr': "802 North 300 West, Hurricane, UT 84737", 'gps': '37.188494405724,-113.29338910648485'},
-'wash3905': {'begin': 2020, 'end': 0, 'addr': "3905 South Saddleback Road, Washington, UT 84780", 'gps': '37.07830998533132,-113.50237541801445'},
-'cedar2944': {'begin': 0, 'end': 0, 'addr': "2944 West Ezra Drive, Cedar City, UT 84720", 'gps': '37.669544927549815,-113.1074200026512'},
+'None': {'begin': 0, 'end': 0, 'url': 0, 'addr': "Unknown", 'gps': 'None'},
+'af': {'begin': 0, 'end': 0, 'url': 0, 'addr': "American Fork, UT", 'gps': 'None'},
+'cedar': {'begin': 0, 'end': 0, 'url': 0, 'addr': "Cedar City, UT", 'gps': 'None'},
+'lehi': {'begin': 0, 'end': 0, 'url': 0, 'addr': "Lehi, UT", 'gps': 'None'},
+'orem': {'begin': 0, 'end': 0, 'url': 0, 'addr': "Orem, UT", 'gps': 'None'},
+'pg': {'begin': 0, 'end': 0, 'url': 0, 'addr': "Pleasant Grove, UT", 'gps': 'None'},
+'provo': {'begin': 0, 'end': 0, 'url': 0, 'addr': "Provo, UT", 'gps': 'None'},
+'rc': {'begin': 0, 'end': 0, 'url': 0, 'addr': "Ridgecrest, CA", 'gps': 'None'},
+'salem': {'begin': 0, 'end': 0, 'url': 0, 'addr': "Salem, UT", 'gps': 'None'},
+'sf': {'begin': 0, 'end': 0, 'url': 0, 'addr': "Spanish Fork, UT", 'gps': 'None'},
+'slc': {'begin': 0, 'end': 0, 'url': 0, 'addr': "Salt Lake City, UT", 'gps': 'None'},
+'stg': {'begin': 0, 'end': 0, 'url': 0, 'addr': "St George, UT", 'gps': 'None'},
+'tmp': {'begin': 0, 'end': 0, 'url': 1, 'addr': "", 'gps': ''},
+'mntl': {'begin': 0, 'end': 0, 'url': 1, 'addr': "217A Thornwood Dr, Mt Laurel Township, NJ 08054", 'gps': '39.97355207645182,-74.87195527373382'},
+'glassboro': {'begin': 0, 'end': 0, 'url': 1, 'addr': "244 Pomona Ave, Glassboro, NJ 08028", 'gps': '39.71157245713632,-75.1075983988175'},
+'shingletown': {'begin': 0, 'end': 0, 'url': 2, 'addr': "Route 2 Box 317 Moorerion Way, Shingletown CA 96088", 'gps': '40.52093621114062,-121.90813194888482'},
+'redding': {'begin': 0, 'end': 0, 'url': 1, 'addr': "6931 Dennis Ct, Redding, CA 96001", 'gps': '40.516466510500244,-122.36567821864101'},
+'visalia': {'begin': 0, 'end': 0, 'url': 1, 'addr': "3005 West Packwood Ct, Visalia, CA 93277", 'gps': '36.2947109176429,-119.32378558920523'},
+'rc825': {'begin': 0, 'end': 0, 'url': 1, 'addr': "825 Paradise Drive, Ridgecrest, CA 93555", 'gps': '35.636618004991874,-117.69183314365613'},
+'cleveland': {'begin': 0, 'end': 0, 'url': 1, 'addr': "153 Heather Ln NW, Cleveland, TN 37311", 'gps': '35.17412963875532,-84.9004669604066'},
+'af412': {'begin': 1995, 'end': 1999, 'url': 1, 'addr': "412 North 520 West, American Fork, UT 84003", 'gps': '40.385723114562275,-111.81170161789726'},
+'salem381': {'begin': 1999, 'end': 2004, 'url': 1, 'addr': "381 West 90 South, Salem, UT 84653", 'gps': '40.05388425398461,-111.68101740256654'},
+'sf2344': {'begin': 2004, 'end': 2012, 'url': 1, 'addr': "2344 East 1120 South, Spanish Fork, UT 84660", 'gps': '40.09501897424211,-111.61557782129908'},
+'sf2087': {'begin': 2012, 'end': 2016, 'url': 1, 'addr': "2087 East 30 North, Spanish Fork, UT 84660", 'gps': '40.11059005306335,-111.61939406023592'},
+'payson322': {'begin': 2016, 'end': 2017, 'url': 1, 'addr': "1045 South 1700 West #322, Payson, UT 84651", 'gps': '40.027153115187446,-111.76237033696721'},
+'salem934': {'begin': 2017, 'end': 2018, 'url': 1, 'addr': "934 South 140 East, Salem, UT 84653", 'gps': '40.04021877168592,-111.67113360191078'},
+'hurr802': {'begin': 2018, 'end': 2020, 'url': 1, 'addr': "802 North 300 West, Hurricane, UT 84737", 'gps': '37.188494405724,-113.29338910648485'},
+'wash3905': {'begin': 2020, 'end': 0, 'url': 1, 'addr': "3905 South Saddleback Road, Washington, UT 84780", 'gps': '37.07830998533132,-113.50237541801445'},
+'cedar2944': {'begin': 0, 'end': 0, 'url': 1, 'addr': "2944 West Ezra Drive, Cedar City, UT 84720", 'gps': '37.669544927549815,-113.1074200026512'},
 }
 
 # Supported extensions
@@ -101,7 +109,8 @@ ext_videos_convert = tuple([f".{ext}" for ext in ext_video_convert_str.split('|'
 ext_sounds = tuple([f".{ext}" for ext in ext_sound_str.split('|')])
 ext_all = tuple([f".{ext}" for ext in ext_all_str.split('|')])
 
-summary_file = '0-summary.txt'
+url_base = "https://www.google.com/maps"
+summary_file = '0-summary.html'
 
 # Setup HEIF and MIME
 pillow_heif.register_heif_opener()
@@ -454,7 +463,6 @@ def create_templates(target, recurse):
     notice("Creating Description Templates")
     dir_groups = get_dir_groups(target, recurse)
     map_height = '200m'
-    url_base = "https://www.google.com/maps"
     for root, files in dir_groups.items():
         print(f"{'[DIR]':<11} {root}")
         action = "template"
@@ -489,13 +497,17 @@ def create_templates(target, recurse):
                     gps_str = LOCATION_TAG[l_val]['gps']
 
                 if gps_str != "None":
-                    place = LOCATION_TAG[l_val]['addr'].replace(" ", "+")
-                    if place != "Unknown":
-                        # https://www.google.com/maps/place/2344+East+1120+South,+Spanish+Fork,+UT+84660/@40.09501897424211,-111.61557782129908,200m
-                        gps_url = f"{url_base}/place/{place}/@{gps_str},{map_height}"
+                    if LOCATION_TAG[l_val]['url'] == 1:
+                        # url 1: https://www.google.com/maps/place/street+city+state+zip/@lat,lon,200m
+                        place = LOCATION_TAG[l_val]['addr'].replace(" ", "+")
+                        if place != "Unknown":
+                            gps_url = f"{url_base}/place/{place}/@{gps_str},{map_height}"
+                    elif LOCATION_TAG[l_val]['url'] == 2:
+                        # url 2: https://www.google.com/maps/search/?api=1&query=lat,lon
+                        gps_url = f"{url_base}/search/?api=1&query={gps_str}"
             else:
                 if gps_str != 'None':
-                    # https://www.google.com/maps/search/?api=1&query=40.09501897424211,-111.61557782129908
+                    # url 2: https://www.google.com/maps/search/?api=1&query=lat,lon
                     gps_url = f"{url_base}/search/?api=1&query={gps_str}"
 
             file_data = {
@@ -574,11 +586,20 @@ def filename_to_modification_dt(target, recurse, verbose):
             with open(os.path.join(root, f"process_log_{dtnow}.json"), 'w') as f:
                 json.dump(change_log, f, indent=4)
             with open(summary_path, 'w') as sf:
-                sf.write(f'Summary Date: {dtnow}\n')
-                sf.write(f'Summary For:  {root}\n\n')
+                sf.write(f'<html><head><meta name="robots" content="none">\n')
+                sf.write(f'<title>Summary</title>\n')
+                sf.write(f'<style>table {{ border-collapse: separate; border-spacing: 25px 0px; }}</style>\n')
+                sf.write(f'</head>\n')
+                sf.write(f'<body><h4 align="center">Summary</h4>\n')
+                sf.write(f'<center><table><tr><td>Summary Date:</td><td>{dtnow}</td></tr>\n')
+                sf.write(f'<tr><td>Summary For:</td><td>{root}</td></tr></table><br>\n')
+                sf.write(f'<table><tr><th>Filename</th><th>Action</th><th>Date</th><th>Source</th><th>Meta</th><th>FS</th><th>GPS</th><th>Type</th></tr>\n')
                 for e in change_log:
-                    formatted_line = f"Filename: {e['new_name']}, Action: {e['action'].upper()}, Date: {e['date_used']}, Source: {e['date_source']}, Meta: {e['updated_datetime']['meta']}, FS: {e['updated_datetime']['fs']}, GPS: {e['gps']}, Type: {e['mime_type'][0]}\n"
+                    new_name_link = f"<a href='{e['new_name']}' target='_blank' rel='noopener'>{e['new_name']}</a>"
+                    gps_link = f"<a href='{url_base}/search/?api=1&query={e['gps']}' target='_blank' rel='noopener'>{e['gps']}</a>" if e['gps'] != "None" else "None"
+                    formatted_line = f"<tr><td>{new_name_link}</td><td>{e['action'].upper()}</td><td>{e['date_used']}</td><td>{e['date_source']}</td><td>{e['updated_datetime']['meta']}</td><td>{e['updated_datetime']['fs']}</td><td>{gps_link}</td><td>{e['mime_type'][0]}</td></tr>\n"
                     sf.write(formatted_line)
+                sf.write(f'</table></center></body></html>\n')
             print()
 
     if file_cnt > 0: display_logs(target_input, verbose, all_subdirs=False)
@@ -811,6 +832,8 @@ if __name__ == "__main__":
     if len(sys.argv) == 1: 
         print(f"LOCATION TAGS")
         print(json.dumps(LOCATION_TAG, indent=4))
+        print('url 1: https://www.google.com/maps/place/street+city+state+zip/@lat,lon,200m')
+        print('url 2: https://www.google.com/maps/search/?api=1&query=lat,lon')
         print(f"\nMedia Organizer, v{SVER}\n")
         parser.print_help()
         sys.exit(1)

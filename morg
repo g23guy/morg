@@ -493,22 +493,25 @@ def save_group_html(data):
         time_frame = f" <em>({rdata['first_year']})</em>"
     with open(new_path, 'w') as f:
         f.write(f"""<!DOCTYPE html><html><head><meta name="robots" content="none">\n""")
+        f.write(f"<style>table {{ border-collapse: separate; border-spacing: 15px 0px; }} td {{ vertical-align: middle; }}</style>\n")
         f.write(f"<title>{title}</title></head><body>\n")
-        f.write(f"""<h1><a href="{rdata['gps_url']}" target="_blank" rel="noopener noreferrer">{loc}</a>{time_frame}</h1>\n""")
-        f.write(f"<h2>Description: {title}</h2>\n\n")
-        f.write(f"<p>\ntype_here\n</p>\n\n<ul>\n")
+        f.write(f"<h1>Year {filename[:4]}</h1>\n")
+        f.write(f"""<h2><a href="{rdata['gps_url']}" target="_blank" rel="noopener noreferrer" style="text-decoration: none;">{loc}</a>{time_frame}</h2>\n""")
+        f.write(f"<h3>Description: {title}</h3>\n\n")
+        f.write(f"<p>\n<!-- General narrative of the description group event and activities. -->\n</p>\n\n<table>\n")
         for file_data in data:
-            style_str = ''
             if file_data['gps_url_style'] == 1:
                 style_str = "House "
             elif file_data['gps_url_style'] == 2:
                 style_str = "Image "
+            else:
+                style_str = ''
             
-            map_str = '' if file_data['gps_url'] == "None" else f""", <a href="{file_data['gps_url']}" target="_blank">{style_str}map</a>"""
-            image_str = f""" <img src="{file_data['ref_name']}" height="50">""" if file_data['type'] == "image" else ''
-            f.write(f"""<li><a href="{file_data['ref_name']}" target="_blank">{file_data['ref_name']}</a>{map_str}{image_str}: </li>\n""")
+            map_str = '' if file_data['gps_url'] == "None" else f"""<a href="{file_data['gps_url']}" target="_blank">{style_str}Map</a>"""
+            image_str = f"""<a href="{file_data['ref_name']}" target="_blank"><img src="{file_data['ref_name']}" height="50"></a>""" if file_data['type'] == "image" else ''
+            f.write(f"""<tr><td><a href="{file_data['ref_name']}" target="_blank">{file_data['ref_name']}</a></td><td>{map_str}</td><td>{image_str}</td>\n<td>\n\n</td></tr>\n""")
 
-        f.write(f"</ul>\n\n</body></html>\n")
+        f.write(f"</table>\n\n</body></html>\n")
     print("Done")
 
 def create_templates(target, recurse):
@@ -527,7 +530,6 @@ def create_templates(target, recurse):
                 continue
               
         d_val = match.group(4) if match else "None"
-        print(d_val)
         current_group = []
         current_key = d_val
 

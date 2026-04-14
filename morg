@@ -109,8 +109,8 @@ ext_videos_convert = tuple([f".{ext}" for ext in ext_video_convert_str.split('|'
 ext_sounds = tuple([f".{ext}" for ext in ext_sound_str.split('|')])
 ext_all = tuple([f".{ext}" for ext in ext_all_str.split('|')])
 
-url_base = "https://www.google.com/maps"
-summary_file = '0-summary.html'
+URL_BASE = "https://www.google.com/maps"
+SUMMARY_FILE = '0-summary.html'
 
 # Setup HEIF and MIME
 pillow_heif.register_heif_opener()
@@ -323,7 +323,7 @@ def get_template_filename(root, tagged_base, target_ext):
     old_path = os.path.join(root, new_name)
     new_path = old_path
     if os.path.exists(new_path):
-        new_name = f"{tagged_base}.template{target_ext}"
+        new_name = f"{tagged_base}{target_ext}.tmp"
         new_path = os.path.join(root, new_name)
     return new_path
 
@@ -409,7 +409,7 @@ def restore_original_names(target_path, recurse):
     notice("Restoring Media Files to the Original Names, Except Converted Files")
     # once files are converted, they are not converted back
     logs = get_all_logs(target_path, recurse)
-    summary_path = os.path.join(target_path['root'], summary_file)
+    summary_path = os.path.join(target_path['root'], SUMMARY_FILE)
     if not logs: return
     logs.reverse()
     for log_path in logs:
@@ -443,93 +443,131 @@ def save_template_md(data):
         f.write(f"Description: {text}\n\n-")
     print(f"{'[TEMPLATE]':<11} {data['doc_name']}")
 
-def save_md2html(data):
-    # Open the file for reading and read the input to a temp variable
-    with open(data['doc_path'], 'r') as f:
-        tmp_md = f.read()
+def get_gpsurl(gps_str, l_val):
+    map_height = '200m'
+    gps_url = "None"
+    style = 0
+    if l_val in LOCATION_TAG:
+        if gps_str == 'None':
+            # Use the gps data from known addresses if not found in the image
+            gps_str = LOCATION_TAG[l_val]['gps']
+            if gps_str != "None":
+                if LOCATION_TAG[l_val]['url'] == 1:
+                    # url 1: https://www.google.com/maps/place/street+city+state+zip/@lat,lon,200m
+                    place = LOCATION_TAG[l_val]['addr'].replace(" ", "+")
+                    if place != "Unknown":
+                        gps_url = f"{URL_BASE}/place/{place}/@{gps_str},{map_height}"
+                        style = 1
+                elif LOCATION_TAG[l_val]['url'] == 2:
+                    # url 2: https://www.google.com/maps/search/?api=1&query=lat,lon
+                    gps_url = f"{URL_BASE}/search/?api=1&query={gps_str}"
+                    style = 2
+        else:
+            # url 2: https://www.google.com/maps/search/?api=1&query=lat,lon
+            gps_url = f"{URL_BASE}/search/?api=1&query={gps_str}"
+            style = 2
+    else:
+        if gps_str != 'None':
+            # url 2: https://www.google.com/maps/search/?api=1&query=lat,lon
+            gps_url = f"{URL_BASE}/search/?api=1&query={gps_str}"
+            style = 2
+    return gps_url, style
 
-    # Convert the input to HTML
-    tmp_html = markdown.markdown(tmp_md)
-    # If necessary, could print or edit the results at this point.
-    new_name = f"{data['tagged_base']}.htm"
-    new_path = os.path.join(data['root'], new_name)
-
-    # Open the HTML file and write the output.
+def save_group_html(data):
+    action = "template"
+    action_str = "[" + action.upper() + "]"
+    source = "filedata"
+    rdata = data[0]
+    filename = os.path.basename(rdata['ref_name']).lower()
+    root = rdata['root']
+    title = rdata['description'].replace('_', ' ').title()
+    loc = rdata['address']
+    tagged_base, target_ext = os.path.splitext(filename)[0], ".html"
+    new_path = get_template_filename(root, tagged_base, target_ext)
+    new_name = os.path.basename(new_path).lower()
+    print(f"{action_str:<11} {new_name}... ", end="", flush=True)
+    time_frame = f" <em>({rdata['first_year']}-{rdata['last_year']})</em>"
+    if rdata['first_year'] == 0:
+        time_frame = ''
+    elif rdata['last_year'] == 0:
+        time_frame = f" <em>({rdata['first_year']})</em>"
     with open(new_path, 'w') as f:
-        f.write(tmp_html)
-    print(f"{'[HTML]':<11} {new_name}")
+        f.write(f"""<!DOCTYPE html><html><head><meta name="robots" content="none">\n""")
+        f.write(f"<title>{title}</title></head><body>\n")
+        f.write(f"""<h1><a href="{rdata['gps_url']}" target="_blank" rel="noopener noreferrer">{loc}</a>{time_frame}</h1>\n""")
+        f.write(f"<h2>Description: {title}</h2>\n\n")
+        f.write(f"<p>\ntype_here\n</p>\n\n<ul>\n")
+        for file_data in data:
+            style_str = ''
+            if file_data['gps_url_style'] == 1:
+                style_str = "House "
+            elif file_data['gps_url_style'] == 2:
+                style_str = "Image "
+            
+            map_str = '' if file_data['gps_url'] == "None" else f""", <a href="{file_data['gps_url']}" target="_blank">{style_str}map</a>"""
+            image_str = f""" <img src="{file_data['ref_name']}" height="50">""" if file_data['type'] == "image" else ''
+            f.write(f"""<li><a href="{file_data['ref_name']}" target="_blank">{file_data['ref_name']}</a>{map_str}{image_str}: </li>\n""")
+
+        f.write(f"</ul>\n\n</body></html>\n")
+    print("Done")
 
 def create_templates(target, recurse):
     notice("Creating Description Templates")
     dir_groups = get_dir_groups(target, recurse)
-    map_height = '200m'
     for root, files in dir_groups.items():
         print(f"{'[DIR]':<11} {root}")
-        action = "template"
-        action_str = "[" + action.upper() + "]"
-        source = "filename"
 
-        unique_files = {}
-        # Create the list of files needing templates
-        for this_path in sorted(files, reverse=True):
-            filename = os.path.basename(this_path).lower()
-            match = FILENAME_PATTERN.match(filename)
-            d_val = match.group(4) if match else "None"
-
-            if match:
-                if d_val not in unique_files:
-                    unique_files[d_val] = filename
+        # Initial group
+        for key_path in sorted(files):
+            filename = os.path.basename(key_path).lower()
+            match = FILENAME_PATTERN.match(filename.lower())
+            if match: 
+                break
+            else:
+                continue
+              
+        d_val = match.group(4) if match else "None"
+        print(d_val)
+        current_group = []
+        current_key = d_val
 
         # Create the template for each unique_files
-        for old_path in unique_files.values():
+        for old_path in sorted(files):
             filename = os.path.basename(old_path).lower()
-            tagged_base, target_ext = os.path.splitext(filename)[0], ".md"
-            new_path = get_template_filename(root, tagged_base, target_ext)
             match = FILENAME_PATTERN.match(filename.lower())
+            if not match: continue
             s_val = match.group(2) if match else "None"
             l_val = match.group(3) if match else "None"
             d_val = match.group(4) if match else "None"
+            key = d_val
             gps_str = get_gpsinfo(old_path)
-            gps_url = "None"
-            if l_val in LOCATION_TAG:
-                if gps_str == 'None':
-                    # Use the gps data from known addresses if not found in the image
-                    gps_str = LOCATION_TAG[l_val]['gps']
-
-                if gps_str != "None":
-                    if LOCATION_TAG[l_val]['url'] == 1:
-                        # url 1: https://www.google.com/maps/place/street+city+state+zip/@lat,lon,200m
-                        place = LOCATION_TAG[l_val]['addr'].replace(" ", "+")
-                        if place != "Unknown":
-                            gps_url = f"{url_base}/place/{place}/@{gps_str},{map_height}"
-                    elif LOCATION_TAG[l_val]['url'] == 2:
-                        # url 2: https://www.google.com/maps/search/?api=1&query=lat,lon
-                        gps_url = f"{url_base}/search/?api=1&query={gps_str}"
-            else:
-                if gps_str != 'None':
-                    # url 2: https://www.google.com/maps/search/?api=1&query=lat,lon
-                    gps_url = f"{url_base}/search/?api=1&query={gps_str}"
-
+            gps_url, gps_url_style = get_gpsurl(gps_str, l_val)
             file_data = {
                 "root": root,
-                "tagged_base": tagged_base,
                 "ref_name": filename, 
-                "doc_path": new_path,
-                "doc_name": os.path.basename(new_path),
+                "type": get_mime_list(old_path)[0],
                 "state": s_val,
                 "location": l_val, 
                 "description": d_val,
                 "gps": gps_str,
+                "gps_url_style": gps_url_style,
                 "gps_url": gps_url,
                 "address": LOCATION_TAG[l_val]['addr'] if l_val in LOCATION_TAG else "Unknown",
                 "first_year": LOCATION_TAG[l_val]['begin'] if l_val in LOCATION_TAG else 0,
                 "last_year": LOCATION_TAG[l_val]['end'] if l_val in LOCATION_TAG else 0,
-                "data_source": source, 
-                "action": action, 
-                "status": "success"
             }
-            save_template_md(file_data)
-#            save_md2html(file_data)
+            
+            # If the key changes, save the current group and start a new one
+            if key != current_key:
+                save_group_html(current_group)
+                current_group = [file_data]
+                current_key = key
+            else:
+                current_group.append(file_data)
+        
+        # Save the final group
+        save_group_html(current_group)
+
     print()
 
 def filename_to_modification_dt(target, recurse, verbose):
@@ -582,7 +620,7 @@ def filename_to_modification_dt(target, recurse, verbose):
 
         if change_log:
             dtnow = datetime.now().strftime('%Y%m%d_%H%M%S')
-            summary_path = os.path.join(root, summary_file)
+            summary_path = os.path.join(root, SUMMARY_FILE)
             with open(os.path.join(root, f"process_log_{dtnow}.json"), 'w') as f:
                 json.dump(change_log, f, indent=4)
             with open(summary_path, 'w') as sf:
@@ -596,7 +634,7 @@ def filename_to_modification_dt(target, recurse, verbose):
                 sf.write(f'<table><tr><th>Filename</th><th>Action</th><th>Date</th><th>Source</th><th>Meta</th><th>FS</th><th>GPS</th><th>Type</th></tr>\n')
                 for e in change_log:
                     new_name_link = f"<a href='{e['new_name']}' target='_blank' rel='noopener'>{e['new_name']}</a>"
-                    gps_link = f"<a href='{url_base}/search/?api=1&query={e['gps']}' target='_blank' rel='noopener'>{e['gps']}</a>" if e['gps'] != "None" else "None"
+                    gps_link = f"<a href='{URL_BASE}/search/?api=1&query={e['gps']}' target='_blank' rel='noopener'>{e['gps']}</a>" if e['gps'] != "None" else "None"
                     formatted_line = f"<tr><td>{new_name_link}</td><td>{e['action'].upper()}</td><td>{e['date_used']}</td><td>{e['date_source']}</td><td>{e['updated_datetime']['meta']}</td><td>{e['updated_datetime']['fs']}</td><td>{gps_link}</td><td>{e['mime_type'][0]}</td></tr>\n"
                     sf.write(formatted_line)
                 sf.write(f'</table></center></body></html>\n')
@@ -815,7 +853,7 @@ if __name__ == "__main__":
     parser.add_argument("-r", "--recurse", action="store_true", default=False, help="Recurse subdirs")
     parser.add_argument("-f", "--force", action="store_true", help="Force evaluating files, even if previously renamed")
     parser.add_argument("-e", "--reverse", action="store_true", help="Reverse last session")
-    parser.add_argument("-m", "--modified", action="store_true", help=f"Use the current filename to update the file creation/modification/access date/time, then write {summary_file}")
+    parser.add_argument("-m", "--modified", action="store_true", help=f"Use the current filename to update the file creation/modification/access date/time, then write {SUMMARY_FILE}")
     parser.add_argument("-o", "--original", action="store_true", help="Restore original filenames and delete logs")
     parser.add_argument("-p", "--template", action="store_true", help="Creates a description template file for the file given")
     parser.add_argument("-g", "--log", action="store_true", help="Display latest JSON log summary")

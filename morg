@@ -480,7 +480,7 @@ def save_group_html(data):
     rdata = data[0]
     filename = os.path.basename(rdata['ref_name']).lower()
     root = rdata['root']
-    title = rdata['description'].replace('_', ' ').title()
+    title = str(rdata['description']).replace('_', ' ').title()
     loc = rdata['address']
     tagged_base, target_ext = os.path.splitext(filename)[0], ".html"
     new_path = get_template_filename(root, tagged_base, target_ext)
@@ -506,11 +506,9 @@ def save_group_html(data):
                 style_str = "Image "
             else:
                 style_str = ''
-            
             map_str = '' if file_data['gps_url'] == "None" else f"""<a href="{file_data['gps_url']}" target="_blank">{style_str}Map</a>"""
             image_str = f"""<a href="{file_data['ref_name']}" target="_blank"><img src="{file_data['ref_name']}" height="50"></a>""" if file_data['type'] == "image" else ''
-            f.write(f"""<tr><td><a href="{file_data['ref_name']}" target="_blank">{file_data['ref_name']}</a></td><td>{map_str}</td><td>{image_str}</td>\n<td>\n\n</td></tr>\n""")
-
+            f.write(f"""<tr><td><a href="{file_data['ref_name']}" target="_blank">{file_data['ref_name']}</a></td><td>{map_str}</td><td>{image_str}</td>\n<td>\n<!-- image description -->\n</td></tr>\n""")
         f.write(f"</table>\n\n</body></html>\n")
     print("Done")
 
@@ -523,7 +521,7 @@ def create_templates(target, recurse):
         # Initial group
         for key_path in sorted(files):
             filename = os.path.basename(key_path).lower()
-            match = FILENAME_PATTERN.match(filename.lower())
+            match = FILENAME_PATTERN.match(filename)
             if match: 
                 break
             else:

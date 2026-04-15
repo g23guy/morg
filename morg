@@ -634,21 +634,23 @@ def filename_to_modification_dt(target, recurse, verbose):
                 sf.write(f'</head>\n')
                 sf.write(f'<body><h1 align="center">Summary</h1>\n')
                 sf.write(f'<center><table><tr><td>Summary Date:</td><td>{dtnow}</td></tr>\n')
-                sf.write(f'<tr><td>Summary For:</td><td>{root}</td></tr></table><br>\n')
+                sf.write(f'<tr><td>Summary For:</td><td>{root}</td></tr>\n')
+                sf.write(f'<tr><td>Organized By:</td><td>Media Organizer, v{SVER}</td></tr></table><br>\n')
                 sf.write(f"<table>\n")
                 sf.write(f"""
-<tr><td>Filename Format:</td><td>YYYYMMDD-HHMMSS[-State][-Location][-Description](_#).ext</td></tr>
-<td>YYYYMMDD-HHMMSS:</td><td>Mandatory year, month, day, hour, minute, second the picture was taken</td></tr>
-<td>[-State]:</td><td>Optional state tag</td></tr>
-<td>[-Location]:</td><td>Optional location tag, usually an address tag or city</td></tr>
-<td>[-Description]:</td><td>Optional description tag</td></tr>
-<td>(_#):</td><td>Optional collision number in case a file has the same date/time stamp</td></tr>
-<td>.ext:</td><td>The media's extension</td></tr>
+<tr><td>Filename Format</td><td><strong>YYYYMMDD-HHMMSS[-State][-Location][-Description](_#).ext</strong></td></tr>
+<td>YYYYMMDD-HHMMSS</td><td>Mandatory year, month, day, hour, minute, second the picture was taken</td></tr>
+<td>[-State]</td><td>Optional state tag</td></tr>
+<td>[-Location]</td><td>Optional location tag, usually an address tag or city</td></tr>
+<td>[-Description]</td><td>Optional description tag. Used to create group description files.</td></tr>
+<td>(_#)</td><td>Optional collision number in case a file has the same date/time stamp</td></tr>
+<td>.ext</td><td>The media's extension</td></tr>
                 \n""")
                 sf.write(f"</table><br>\n")
+                sf.write(f"<p>The purpose of the file format is the sort media chronologically, and to tag the files so you know basically where and what the file is about.</p>\n")
                 if html_files:
                     sf.write(f"<hr><h4>HTML Group Description File List</h4>\n")
-                    sf.write(f"<p>These files contain a desciption of the event and the people associated with it.</p>\n")
+                    sf.write(f"<p>Media files are grouped together using the description tag. These files contain a desciption of<br>the event and the people associated with it. Not all grouped files will have a description file.</p>\n")
                     sf.write(f'<table><tr><th>Filename</th></tr>\n')
                     for e in html_files:
                         link_to_html = f"""<tr><td><a href="{e}">{e}</a></td></tr>"""
@@ -756,7 +758,7 @@ def process_media(target_input, recurse, adjacent, state_arg, location_arg, desc
                     if not given_time:
                         given_time = datetime.strftime(dt, "%H%M%S")
                     tmp_time = int(given_time)
-                    tmp_time += 1
+                    tmp_time += 4
                     given_time = str(tmp_time)
                         
                 os.rename(old_path, new_path)

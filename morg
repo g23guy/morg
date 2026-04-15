@@ -110,7 +110,7 @@ ext_sounds = tuple([f".{ext}" for ext in ext_sound_str.split('|')])
 ext_all = tuple([f".{ext}" for ext in ext_all_str.split('|')])
 
 URL_BASE = "https://www.google.com/maps"
-SUMMARY_FILE = '0-summary.html'
+SUMMARY_FILE = '0-README.html'
 
 # Setup HEIF and MIME
 pillow_heif.register_heif_opener()
@@ -579,6 +579,7 @@ def filename_to_modification_dt(target, recurse, verbose):
     for root, files in dir_groups.items():
         print(f"{'[DIR]':<11} {root}")
         change_log = []
+        html_files = []
         action = "updated"
         action_str = "[" + action.upper() + "]"
         source = "filename"
@@ -592,6 +593,10 @@ def filename_to_modification_dt(target, recurse, verbose):
             s_val = match.group(2) if match else ""
             l_val = match.group(3) if match else ""
             d_val = match.group(4) if match else ""
+
+            if filename.endswith('.html'):
+                if filename != SUMMARY_FILE:
+                    html_files.append(filename)
 
             if match:
                 print(f"{action_str:<11} {filename} -> ", end="", flush=True)
@@ -618,27 +623,50 @@ def filename_to_modification_dt(target, recurse, verbose):
                 })
                 print(f"{new_name}")
 
-        if change_log:
             dtnow = datetime.now().strftime('%Y%m%d_%H%M%S')
             summary_path = os.path.join(root, SUMMARY_FILE)
             with open(os.path.join(root, f"process_log_{dtnow}.json"), 'w') as f:
                 json.dump(change_log, f, indent=4)
             with open(summary_path, 'w') as sf:
-                sf.write(f'<html><head><meta name="robots" content="none">\n')
+                sf.write(f'<!DOCTYPE html><html><head><meta name="robots" content="none">\n')
                 sf.write(f'<title>Summary</title>\n')
                 sf.write(f'<style>table {{ border-collapse: separate; border-spacing: 15px 0px; }}</style>\n')
                 sf.write(f'</head>\n')
                 sf.write(f'<body><h1 align="center">Summary</h1>\n')
                 sf.write(f'<center><table><tr><td>Summary Date:</td><td>{dtnow}</td></tr>\n')
                 sf.write(f'<tr><td>Summary For:</td><td>{root}</td></tr></table><br>\n')
-                sf.write(f'<table><tr><th>Filename</th><th>Action</th><th>Date</th><th>Source</th><th>Meta</th><th>FS</th><th>GPS</th><th>Type</th></tr>\n')
-                for e in change_log:
-                    new_name_link = f"<a href='{e['new_name']}' target='_blank' rel='noopener'>{e['new_name']}</a>"
-                    gps_link = f"<a href='{URL_BASE}/search/?api=1&query={e['gps']}' target='_blank' rel='noopener'>{e['gps']}</a>" if e['gps'] != "None" else "None"
-                    formatted_line = f"<tr><td>{new_name_link}</td><td>{e['action'].upper()}</td><td>{e['date_used']}</td><td>{e['date_source']}</td><td>{e['updated_datetime']['meta']}</td><td>{e['updated_datetime']['fs']}</td><td>{gps_link}</td><td>{e['mime_type'][0]}</td></tr>\n"
-                    sf.write(formatted_line)
-                sf.write(f'</table></center></body></html>\n')
-            print()
+                sf.write(f"<table>\n")
+                sf.write(f"""
+<tr><td>Filename Format:</td><td>YYYYMMDD-HHMMSS[-State][-Location][-Description](_#).ext</td></tr>
+<td>YYYYMMDD-HHMMSS:</td><td>Mandatory year, month, day, hour, minute, second the picture was taken</td></tr>
+<td>[-State]:</td><td>Optional state tag</td></tr>
+<td>[-Location]:</td><td>Optional location tag, usually an address tag or city</td></tr>
+<td>[-Description]:</td><td>Optional description tag</td></tr>
+<td>(_#):</td><td>Optional collision number in case a file has the same date/time stamp</td></tr>
+<td>.ext:</td><td>The media's extension</td></tr>
+                \n""")
+                sf.write(f"</table><br>\n")
+                if html_files:
+                    sf.write(f"<hr><h4>HTML Group Description File List</h4>\n")
+                    sf.write(f"<p>These files contain a desciption of the event and the people associated with it.</p>\n")
+                    sf.write(f'<table><tr><th>Filename</th></tr>\n')
+                    for e in html_files:
+                        link_to_html = f"""<tr><td><a href="{e}">{e}</a></td></tr>"""
+                        sf.write(f"{link_to_html}\n")
+                    sf.write(f'</table>\n')
+                    
+                if change_log:
+                    sf.write(f"<hr><h4>File Modification List</h4>\n")
+                    sf.write(f"<p>The filename's date/time is written to the metadata (Meta) as the original date/time the media was created and written to the filesystem's modification (FS) date/time. A Meta or FS of one indicates the date/time was successfully updated, whereas zero means it was not. The media's GPS data if found is displayed in the GPS column.</p>\n")
+                    sf.write(f'<table><tr><th>Filename</th><th>Action</th><th>Date</th><th>Source</th><th>Meta</th><th>FS</th><th>GPS</th><th>Type</th></tr>\n')
+                    for e in change_log:
+                        new_name_link = f"<a href='{e['new_name']}' target='_blank' rel='noopener'>{e['new_name']}</a>"
+                        gps_link = f"<a href='{URL_BASE}/search/?api=1&query={e['gps']}' target='_blank' rel='noopener'>{e['gps']}</a>" if e['gps'] != "None" else "None"
+                        formatted_line = f"<tr><td>{new_name_link}</td><td>{e['action'].upper()}</td><td>{e['date_used']}</td><td>{e['date_source']}</td><td>{e['updated_datetime']['meta']}</td><td>{e['updated_datetime']['fs']}</td><td>{gps_link}</td><td>{e['mime_type'][0]}</td></tr>\n"
+                        sf.write(formatted_line)
+                    sf.write(f'</table></center>\n')
+                sf.write(f'</body></html>\n')
+        print()
 
     if file_cnt > 0: display_logs(target_input, verbose, all_subdirs=False)
     action_str = "[SUMMARY]"

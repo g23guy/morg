@@ -1,5 +1,5 @@
 #!/usr/bin/python3.12
-SVER = '0.9.0'
+SVER = '0.9.0_dev'
 ##############################################################################
 # morg - Media Organizer
 # Copyright (C) 2026 Jason Record
@@ -56,7 +56,7 @@ import glob
 import pillow_heif
 import exiftool
 import piexif
-from datetime import datetime
+from datetime import datetime, timedelta
 from PIL import Image
 from PIL.ExifTags import TAGS
 import moviepy.editor as mp
@@ -623,7 +623,7 @@ def filename_to_modification_dt(target, recurse, verbose):
                 })
                 print(f"{new_name}")
 
-            dtnow = datetime.now().strftime('%Y%m%d_%H%M%S')
+            dtnow = datetime.now().strftime('%B %d, %Y')
             summary_path = os.path.join(root, SUMMARY_FILE)
             with open(os.path.join(root, f"process_log_{dtnow}.json"), 'w') as f:
                 json.dump(change_log, f, indent=4)
@@ -647,10 +647,10 @@ def filename_to_modification_dt(target, recurse, verbose):
 <td>.ext</td><td>The media's extension</td></tr>
                 \n""")
                 sf.write(f"</table><br>\n")
-                sf.write(f"<p>The purpose of the file format is the sort media chronologically, and to tag the files so you know basically where and what the file is about.</p>\n")
+                sf.write(f"<p>The purpose of the file format is to sort media chronologically, and to tag the files so you know basically where and what the file is about.</p>\n")
                 if html_files:
                     sf.write(f"<hr><h4>HTML Group Description File List</h4>\n")
-                    sf.write(f"<p>Media files are grouped together using the description tag. These files contain a desciption of<br>the event and the people associated with it. Not all grouped files will have a description file.</p>\n")
+                    sf.write(f"<p>Media files are grouped together using the description tag. These files contain a desciption of<br>the event and the names of people in the images. Not all grouped files will have a description file.</p>\n")
                     sf.write(f'<table><tr><th>Filename</th></tr>\n')
                     for e in html_files:
                         link_to_html = f"""<tr><td><a href="{e}">{e}</a></td></tr>"""
@@ -706,6 +706,7 @@ def process_media(target_input, recurse, adjacent, state_arg, location_arg, desc
             s_val = state_arg if state_arg is not None else prev.get("state", (match.group(2) if match else ""))
             l_val = location_arg if location_arg is not None else prev.get("location", (match.group(3) if match else ""))
             d_val = description_arg if description_arg is not None else prev.get("description", (match.group(4) if match else ""))
+            dt = ''
 
             if forced:
                 match = False
@@ -720,15 +721,17 @@ def process_media(target_input, recurse, adjacent, state_arg, location_arg, desc
                         dt, source = datetime.strptime(match.group(1), "%Y%m%d-%H%M%S"), "existing"
                 else:
                     if ext not in extensions: continue
-                    dt, source = get_datetime(old_path)
                     if overridden:
                         dt, source = override_dt(dt, given_date, given_time)
+                    else:
+                        dt, source = get_datetime(old_path)
 
                 if adjacent and source == "modified" and last_source in ["creation", "adjacent"]:
-                    dt, source = last_date, "adjacent"
                     if overridden:
                         dt, source = override_dt(dt, given_date, given_time)
-            except Exception: pass
+                    else:
+                        dt, source = last_date, "adjacent"
+            except Exception as e: print(f"DT Error {filename}: {e}")
 
             if (ext in ('.jpeg')):
                 target_ext = '.jpg'
@@ -757,9 +760,9 @@ def process_media(target_input, recurse, adjacent, state_arg, location_arg, desc
                 if time_sequenced:
                     if not given_time:
                         given_time = datetime.strftime(dt, "%H%M%S")
-                    tmp_time = int(given_time)
-                    tmp_time += 4
-                    given_time = str(tmp_time)
+                    current_time = datetime.strptime(given_time, "%H%M%S")
+                    current_time += timedelta(seconds=4)
+                    given_time = current_time.strftime("%H%M%S")
                         
                 os.rename(old_path, new_path)
                 if overridden:

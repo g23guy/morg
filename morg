@@ -1,5 +1,5 @@
 #!/usr/bin/python3.12
-SVER = '0.9.0'
+SVER = '0.9.5'
 ##############################################################################
 # morg - Media Organizer
 # Copyright (C) 2026 Jason Record
@@ -24,7 +24,7 @@ SVER = '0.9.0'
 #               Overridden dates and times are written to the filesystem 
 #               access and modification times to applicable files.
 #
-# Modified:     2026 Apr 15
+# Modified:     2026 Apr 17
 #
 ##############################################################################
 #
@@ -56,7 +56,7 @@ import glob
 import pillow_heif
 import exiftool
 import piexif
-from datetime import datetime
+from datetime import datetime, timedelta
 from PIL import Image
 from PIL.ExifTags import TAGS
 import moviepy.editor as mp
@@ -67,23 +67,24 @@ LOCATION_TAG = {
 'None': {'begin': 0, 'end': 0, 'url': 0, 'addr': "Unknown", 'gps': 'None'},
 'af': {'begin': 0, 'end': 0, 'url': 0, 'addr': "American Fork, UT", 'gps': 'None'},
 'cedar': {'begin': 0, 'end': 0, 'url': 0, 'addr': "Cedar City, UT", 'gps': 'None'},
-'lehi': {'begin': 0, 'end': 0, 'url': 0, 'addr': "Lehi, UT", 'gps': 'None'},
-'orem': {'begin': 0, 'end': 0, 'url': 0, 'addr': "Orem, UT", 'gps': 'None'},
 'pg': {'begin': 0, 'end': 0, 'url': 0, 'addr': "Pleasant Grove, UT", 'gps': 'None'},
-'provo': {'begin': 0, 'end': 0, 'url': 0, 'addr': "Provo, UT", 'gps': 'None'},
 'rc': {'begin': 0, 'end': 0, 'url': 0, 'addr': "Ridgecrest, CA", 'gps': 'None'},
-'salem': {'begin': 0, 'end': 0, 'url': 0, 'addr': "Salem, UT", 'gps': 'None'},
 'sf': {'begin': 0, 'end': 0, 'url': 0, 'addr': "Spanish Fork, UT", 'gps': 'None'},
 'slc': {'begin': 0, 'end': 0, 'url': 0, 'addr': "Salt Lake City, UT", 'gps': 'None'},
 'stg': {'begin': 0, 'end': 0, 'url': 0, 'addr': "St George, UT", 'gps': 'None'},
 'tmp': {'begin': 0, 'end': 0, 'url': 1, 'addr': "", 'gps': ''},
-'mtlaurel': {'begin': 0, 'end': 0, 'url': 1, 'addr': "217A Thornwood Dr, Mt Laurel Township, NJ 08054", 'gps': '39.97355207645182,-74.87195527373382'},
-'glassboro': {'begin': 0, 'end': 0, 'url': 1, 'addr': "244 Pomona Ave, Glassboro, NJ 08028", 'gps': '39.71157245713632,-75.1075983988175'},
-'cleveland': {'begin': 0, 'end': 0, 'url': 1, 'addr': "153 Heather Ln NW, Cleveland, TN 37311", 'gps': '35.17412963875532,-84.9004669604066'},
-'shingletown': {'begin': 0, 'end': 0, 'url': 2, 'addr': "Route 2 Box 317 Moorerion Way, Shingletown CA 96088", 'gps': '40.52093621114062,-121.90813194888482'},
-'redding': {'begin': 0, 'end': 0, 'url': 1, 'addr': "6931 Dennis Ct, Redding, CA 96001", 'gps': '40.516466510500244,-122.36567821864101'},
-'visalia': {'begin': 0, 'end': 0, 'url': 1, 'addr': "3005 West Packwood Ct, Visalia, CA 93277", 'gps': '36.2947109176429,-119.32378558920523'},
+'mtl217': {'begin': 0, 'end': 0, 'url': 1, 'addr': "217A Thornwood Dr, Mt Laurel Township, NJ 08054", 'gps': '39.97355207645182,-74.87195527373382'},
+'glass244': {'begin': 0, 'end': 0, 'url': 1, 'addr': "244 Pomona Ave, Glassboro, NJ 08028", 'gps': '39.71157245713632,-75.1075983988175'},
+'cleve153': {'begin': 0, 'end': 0, 'url': 1, 'addr': "153 Heather Ln NW, Cleveland, TN 37311", 'gps': '35.17412963875532,-84.9004669604066'},
+'stown2': {'begin': 0, 'end': 0, 'url': 2, 'addr': "Route 2 Box 317 Moorerion Way, Shingletown CA 96088", 'gps': '40.52093621114062,-121.90813194888482'},
+'red6931': {'begin': 0, 'end': 0, 'url': 1, 'addr': "6931 Dennis Ct, Redding, CA 96001", 'gps': '40.516466510500244,-122.36567821864101'},
+'vi3005': {'begin': 0, 'end': 0, 'url': 1, 'addr': "3005 West Packwood Ct, Visalia, CA 93277", 'gps': '36.2947109176429,-119.32378558920523'},
 'rc825': {'begin': 0, 'end': 0, 'url': 1, 'addr': "825 Paradise Drive, Ridgecrest, CA 93555", 'gps': '35.636618004991874,-117.69183314365613'},
+'provo735': {'begin': 1988, 'end': 1989, 'url': 1, 'addr': "735 North 440 West, Provo, UT 84601", 'gps': '40.243718701168504,-111.66646033139529'},
+'provo6b': {'begin': 1989, 'end': 1992, 'url': 2, 'addr': "Wymount Terrace 6B #344, Provo, UT 84604", 'gps': '40.25825145909716,-111.63865203744004'},
+'provo189': {'begin': 1992, 'end': 1993, 'url': 1, 'addr': "189 South 500 East, Provo, UT 84606", 'gps': '40.23126560116374,-111.64974833062708'},
+'pg386': {'begin': 1993, 'end': 1994, 'url': 1, 'addr': "386 South 300 East St, Pleasant Grove, UT 84062", 'gps': '40.359401204518456,-111.73614891789813'},
+'orem280': {'begin': 1994, 'end': 1995, 'url': 1, 'addr': "280 Garden Park Dr, Orem, UT 84057", 'gps': '40.299338871939945,-111.70275288906478'},
 'af412': {'begin': 1995, 'end': 1999, 'url': 1, 'addr': "412 North 520 West, American Fork, UT 84003", 'gps': '40.385723114562275,-111.81170161789726'},
 'salem381': {'begin': 1999, 'end': 2004, 'url': 1, 'addr': "381 West 90 South, Salem, UT 84653", 'gps': '40.05388425398461,-111.68101740256654'},
 'sf2344': {'begin': 2004, 'end': 2012, 'url': 1, 'addr': "2344 East 1120 South, Spanish Fork, UT 84660", 'gps': '40.09501897424211,-111.61557782129908'},
@@ -496,19 +497,26 @@ def save_group_html(data):
         f.write(f"<style>table {{ border-collapse: separate; border-spacing: 15px 0px; }} td {{ vertical-align: middle; }}</style>\n")
         f.write(f"<title>{title}</title></head><body>\n")
         f.write(f"<h1>Year {filename[:4]}</h1>\n")
-        f.write(f"""<h2><a href="{rdata['gps_url']}" target="_blank" rel="noopener noreferrer" style="text-decoration: none;">{loc}</a>{time_frame}</h2>\n""")
+        if rdata['gps_url'] == "None":
+            f.write(f"""<h2>{loc}</h2>\n""")
+        else:
+            f.write(f"""<h2><a href="{rdata['gps_url']}" target="_blank" rel="noopener noreferrer" style="text-decoration: none;">{loc}</a>{time_frame}</h2>\n""")
         f.write(f"<h3>Description: {title}</h3>\n\n")
         f.write(f"<p>\n<!-- General narrative of the description group event and activities. -->\n</p>\n\n<table>\n")
         for file_data in data:
             if file_data['gps_url_style'] == 1:
                 style_str = "House "
             elif file_data['gps_url_style'] == 2:
-                style_str = "Image "
+                style_str = "Media "
             else:
                 style_str = ''
+            if file_data['type'] == "image":
+                filetype = ''
+            else:
+                filetype = f"""<a href="{file_data['ref_name']}" target="_blank">{file_data['type'].title()}</a>"""
             map_str = '' if file_data['gps_url'] == "None" else f"""<a href="{file_data['gps_url']}" target="_blank">{style_str}Map</a>"""
-            image_str = f"""<a href="{file_data['ref_name']}" target="_blank"><img src="{file_data['ref_name']}" height="50"></a>""" if file_data['type'] == "image" else ''
-            f.write(f"""<tr><td><a href="{file_data['ref_name']}" target="_blank">{file_data['ref_name']}</a></td><td>{map_str}</td><td>{image_str}</td>\n<td>\n<!-- image description -->\n</td></tr>\n""")
+            image_str = f"""<a href="{file_data['ref_name']}" target="_blank"><img src="{file_data['ref_name']}" height="50"></a>""" if file_data['type'] == "image" else 'None'
+            f.write(f"""<tr><td><a href="{file_data['ref_name']}" target="_blank">{file_data['ref_name']}</a></td><td>{filetype}</td><td>{map_str}</td><td>{image_str}</td>\n<td width="70%">\n<!-- image description -->\n</td></tr>\n""")
         f.write(f"</table>\n\n</body></html>\n")
     print("Done")
 
@@ -530,7 +538,6 @@ def create_templates(target, recurse):
         d_val = match.group(4) if match else "None"
         current_group = []
         current_key = d_val
-
         # Create the template for each unique_files
         for old_path in sorted(files):
             filename = os.path.basename(old_path).lower()
@@ -542,6 +549,13 @@ def create_templates(target, recurse):
             key = d_val
             gps_str = get_gpsinfo(old_path)
             gps_url, gps_url_style = get_gpsurl(gps_str, l_val)
+            if l_val in LOCATION_TAG:
+                address = LOCATION_TAG[l_val]['addr']
+            elif s_val != "None" and l_val != "None":
+                address = f"{l_val.title()}, {s_val.upper()}"
+            else:
+                address = "Unknown"
+
             file_data = {
                 "root": root,
                 "ref_name": filename, 
@@ -552,7 +566,7 @@ def create_templates(target, recurse):
                 "gps": gps_str,
                 "gps_url_style": gps_url_style,
                 "gps_url": gps_url,
-                "address": LOCATION_TAG[l_val]['addr'] if l_val in LOCATION_TAG else "Unknown",
+                "address": address,
                 "first_year": LOCATION_TAG[l_val]['begin'] if l_val in LOCATION_TAG else 0,
                 "last_year": LOCATION_TAG[l_val]['end'] if l_val in LOCATION_TAG else 0,
             }
@@ -623,7 +637,7 @@ def filename_to_modification_dt(target, recurse, verbose):
                 })
                 print(f"{new_name}")
 
-            dtnow = datetime.now().strftime('%Y%m%d_%H%M%S')
+            dtnow = datetime.now().strftime('%B %d, %Y')
             summary_path = os.path.join(root, SUMMARY_FILE)
             with open(os.path.join(root, f"process_log_{dtnow}.json"), 'w') as f:
                 json.dump(change_log, f, indent=4)
@@ -647,10 +661,26 @@ def filename_to_modification_dt(target, recurse, verbose):
 <td>.ext</td><td>The media's extension</td></tr>
                 \n""")
                 sf.write(f"</table><br>\n")
-                sf.write(f"<p>The purpose of the file format is the sort media chronologically, and to tag the files so you know basically where and what the file is about.</p>\n")
+                sf.write(f"""
+<p>The purpose of the file format is to sort media chronologically, and to tag the files so you know basically where and what the file is about.</p>
+
+<p>For example, suppose you see the following files in File Explorer:<br><br>
+
+20000609-160000-ca-groveland-record_family_reunion.html<br>
+20000609-160000-ca-groveland-record_family_reunion.jpg<br>
+20000609-160016-ca-groveland-record_family_reunion.jpg<br>
+20000609-160020-ca-groveland-record_family_reunion.mp3<br>
+20000609-160024-ca-groveland-record_family_reunion.jpg<br><br>
+
+<p>These media files were taken on June 9, 2000 (20000609) at around 4:00pm (160000) in Groveland, CA. The files<br>
+all relate to the Record Family Reunion based on the description tag "record_family_reunion". For details and a<br>
+description of the Record Family Reunion along with the names of people in the photos open the file:<br>
+<em>20000609-160000-ca-groveland-record_family_reunion.html</em>. The .html files group events together. So if you want<br>
+to know more about a picture or video, open the .html file with same description tag in the filename.</p>
+                \n""")
                 if html_files:
                     sf.write(f"<hr><h4>HTML Group Description File List</h4>\n")
-                    sf.write(f"<p>Media files are grouped together using the description tag. These files contain a desciption of<br>the event and the people associated with it. Not all grouped files will have a description file.</p>\n")
+                    sf.write(f"<p>Media files are grouped together using the description tag. These files contain a desciption of<br>the event and the names of people in the images. Not all grouped files will have a description file.</p>\n")
                     sf.write(f'<table><tr><th>Filename</th></tr>\n')
                     for e in html_files:
                         link_to_html = f"""<tr><td><a href="{e}">{e}</a></td></tr>"""
@@ -706,6 +736,7 @@ def process_media(target_input, recurse, adjacent, state_arg, location_arg, desc
             s_val = state_arg if state_arg is not None else prev.get("state", (match.group(2) if match else ""))
             l_val = location_arg if location_arg is not None else prev.get("location", (match.group(3) if match else ""))
             d_val = description_arg if description_arg is not None else prev.get("description", (match.group(4) if match else ""))
+            dt = ''
 
             if forced:
                 match = False
@@ -720,15 +751,17 @@ def process_media(target_input, recurse, adjacent, state_arg, location_arg, desc
                         dt, source = datetime.strptime(match.group(1), "%Y%m%d-%H%M%S"), "existing"
                 else:
                     if ext not in extensions: continue
-                    dt, source = get_datetime(old_path)
                     if overridden:
                         dt, source = override_dt(dt, given_date, given_time)
+                    else:
+                        dt, source = get_datetime(old_path)
 
                 if adjacent and source == "modified" and last_source in ["creation", "adjacent"]:
-                    dt, source = last_date, "adjacent"
                     if overridden:
                         dt, source = override_dt(dt, given_date, given_time)
-            except Exception: pass
+                    else:
+                        dt, source = last_date, "adjacent"
+            except Exception as e: print(f"DT Error {filename}: {e}")
 
             if (ext in ('.jpeg')):
                 target_ext = '.jpg'
@@ -757,9 +790,9 @@ def process_media(target_input, recurse, adjacent, state_arg, location_arg, desc
                 if time_sequenced:
                     if not given_time:
                         given_time = datetime.strftime(dt, "%H%M%S")
-                    tmp_time = int(given_time)
-                    tmp_time += 4
-                    given_time = str(tmp_time)
+                    current_time = datetime.strptime(given_time, "%H%M%S")
+                    current_time += timedelta(seconds=4)
+                    given_time = current_time.strftime("%H%M%S")
                         
                 os.rename(old_path, new_path)
                 if overridden:

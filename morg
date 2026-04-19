@@ -1,5 +1,5 @@
 #!/usr/bin/python3.12
-SVER = '0.9.5_dev'
+SVER = '0.9.5'
 ##############################################################################
 # morg - Media Organizer
 # Copyright (C) 2026 Jason Record
@@ -324,7 +324,7 @@ def get_template_filename(root, tagged_base, target_ext):
     old_path = os.path.join(root, new_name)
     new_path = old_path
     if os.path.exists(new_path):
-        new_name = f"{tagged_base}{target_ext}.src"
+        new_name = f"{tagged_base}{target_ext}.tmp"
         new_path = os.path.join(root, new_name)
     return new_path
 

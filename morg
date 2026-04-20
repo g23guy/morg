@@ -1,5 +1,5 @@
 #!/usr/bin/python3.12
-SVER = '0.9.5'
+SVER = '0.9.5_dev'
 ##############################################################################
 # morg - Media Organizer
 # Copyright (C) 2026 Jason Record
@@ -494,7 +494,32 @@ def save_group_html(data):
         time_frame = f" <em>({rdata['first_year']})</em>"
     with open(new_path, 'w') as f:
         f.write(f"""<!DOCTYPE html><html><head><meta name="robots" content="none">\n""")
-        f.write(f"<style>table {{ border-collapse: separate; border-spacing: 15px 0px; }} td {{ vertical-align: middle; }}</style>\n")
+        f.write(f"<style>")
+        f.write(f"""
+.main {{ 
+     border-collapse: separate; 
+     border-spacing: 15px 0px; 
+}}
+.main tr {{
+  transition: background-color 0.3s ease;
+}}
+.main tr:hover {{
+  background-color: #ddd;
+}}
+.main th,
+.main td {{
+    vertical-align: middle;
+}}
+.main th:nth-child(-n+4), 
+.main td:nth-child(-n+4) {{
+    width: 1%;
+    white-space: nowrap;
+}}
+.main th:nth-child(5), 
+.main td:nth-child(5) {{
+    width: 75%;
+}}
+</style>\n""")
         f.write(f"<title>{title}</title></head><body>\n")
         f.write(f"<h1>Year {filename[:4]}</h1>\n")
         if rdata['gps_url'] == "None":
@@ -502,7 +527,7 @@ def save_group_html(data):
         else:
             f.write(f"""<h2><a href="{rdata['gps_url']}" target="_blank" rel="noopener noreferrer" style="text-decoration: none;">{loc}</a>{time_frame}</h2>\n""")
         f.write(f"<h3>Description: {title}</h3>\n\n")
-        f.write(f"<p>\n<!-- General narrative of the description group event and activities. -->\n</p>\n\n<table>\n")
+        f.write(f"""<p>\n<!-- General narrative of the description group event and activities. -->\n</p>\n\n<table class="main">\n""")
         for file_data in data:
             if file_data['gps_url_style'] == 1:
                 style_str = "House "
@@ -516,7 +541,7 @@ def save_group_html(data):
                 filetype = f"""<a href="{file_data['ref_name']}" target="_blank">{file_data['type'].title()}</a>"""
             map_str = '' if file_data['gps_url'] == "None" else f"""<a href="{file_data['gps_url']}" target="_blank">{style_str}Map</a>"""
             image_str = f"""<a href="{file_data['ref_name']}" target="_blank"><img src="{file_data['ref_name']}" height="50"></a>""" if file_data['type'] == "image" else 'None'
-            f.write(f"""<tr><td><a href="{file_data['ref_name']}" target="_blank">{file_data['ref_name']}</a></td><td>{filetype}</td><td>{map_str}</td><td>{image_str}</td>\n<td width="70%">\n<!-- image description -->\n</td></tr>\n""")
+            f.write(f"""<tr><td><a href="{file_data['ref_name']}" target="_blank">{file_data['ref_name']}</a></td><td>{filetype}</td><td>{map_str}</td><td>{image_str}</td>\n<td>\n<!-- image description -->\n</td></tr>\n""")
         f.write(f"</table>\n\n</body></html>\n")
     print("Done")
 

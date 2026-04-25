@@ -491,7 +491,7 @@ def save_group_html(data):
     if rdata['first_year'] == 0:
         time_frame = ''
     elif rdata['last_year'] == 0:
-        time_frame = f" <em>({rdata['first_year']})</em>"
+        time_frame = f" <em>({rdata['first_year']}-Present)</em>"
     with open(new_path, 'w') as f:
         f.write(f"""<!DOCTYPE html><html><head><meta name="robots" content="none">\n""")
         f.write(f"<style>")

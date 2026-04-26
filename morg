@@ -430,22 +430,6 @@ def restore_original_names(target_path, recurse):
     if os.path.exists(summary_path): os.remove(summary_path)
     print()
 
-def save_template_md(data):
-    with open(data['doc_path'], 'w') as f:
-        loc = LOCATION_TAG[data['location']]['addr'] if data['location'] in LOCATION_TAG else "Unknown"
-        if data['first_year'] == 0:
-            f.write(f"# {data['address']}\n\n")
-        elif data['last_year'] == 0:
-            f.write(f"# {data['address']} _({data['first_year']})_\n\n")
-        else:
-            f.write(f"# {data['address']} _({data['first_year']}-{data['last_year']})_\n\n")
-        f.write(f"Reference File: {data['ref_name']}\n\n")
-        if data['gps'] != 'N/A': 
-            f.write(f"GPS Coordinates: [{data['gps']}]({data['gps_url']})\n\n")
-        text = data['description'].replace('_', ' ').title()
-        f.write(f"Description: {text}\n\n-")
-    print(f"{'[TEMPLATE]':<11} {data['doc_name']}")
-
 def get_gpsurl(gps_str, l_val):
     map_height = '200m'
     gps_url = "N/A"

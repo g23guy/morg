@@ -104,6 +104,7 @@ ext_image_convert_str = "heic|tiff|tif"
 ext_video_str = "mp4|mov|mpg|avi|mkv|wmv|webm|3gp"
 ext_video_convert_str = "mov"
 ext_sound_str = "mp3|wav|snd|m4a|aac|aiff|flac|ogg|amr|mp2"
+ext_html_str = "html|htm"
 ext_all_str = "|".join([ext_image_str, ext_video_str, ext_sound_str])
 ext_images = tuple([f".{ext}" for ext in ext_image_str.split('|')])
 ext_images_convert = tuple([f".{ext}" for ext in ext_image_convert_str.split('|')])
@@ -122,12 +123,40 @@ mimetypes.add_type('image/jfif', '.jfif')
 mimetypes.add_type('image/jxl', '.jxl')
 mimetypes.add_type('audio/amr', '.amr')
 
-# Regex: YYYYMMDD-HHMMSS[-State][-Location][-Description](_#).ext
+# Regex: YYYYMMDD-HHMMSS[-State][-Location][-Description](_#).ext 
 # group(1): YYYYMMDD-HHMMSS
 # group(2): [-State]
 # group(3): [-Location]
 # group(4): [-Description]
 FILENAME_PATTERN = re.compile(r"^(\d{8}-\d{6})(?:-([^-_\.]+))?(?:-([^-\.]+))?(?:-([^-\.]+))?(?:_(\d+))?\.(" + ext_all_str + ")$")
+
+# Regex: YYYYMMDD-HHMMSS[-State][-Location][-Description](_#).ext Image
+# group(1): YYYYMMDD-HHMMSS
+# group(2): [-State]
+# group(3): [-Location]
+# group(4): [-Description]
+FILENAME_IMAGE_PATTERN = re.compile(r"^(\d{8}-\d{6})(?:-([^-_\.]+))?(?:-([^-\.]+))?(?:-([^-\.]+))?(?:_(\d+))?\.(" + ext_image_str + ")$")
+
+# Regex: YYYYMMDD-HHMMSS[-State][-Location][-Description](_#).ext Video
+# group(1): YYYYMMDD-HHMMSS
+# group(2): [-State]
+# group(3): [-Location]
+# group(4): [-Description]
+FILENAME_VIDEO_PATTERN = re.compile(r"^(\d{8}-\d{6})(?:-([^-_\.]+))?(?:-([^-\.]+))?(?:-([^-\.]+))?(?:_(\d+))?\.(" + ext_video_str + ")$")
+
+# Regex: YYYYMMDD-HHMMSS[-State][-Location][-Description](_#).ext Audio
+# group(1): YYYYMMDD-HHMMSS
+# group(2): [-State]
+# group(3): [-Location]
+# group(4): [-Description]
+FILENAME_AUDIO_PATTERN = re.compile(r"^(\d{8}-\d{6})(?:-([^-_\.]+))?(?:-([^-\.]+))?(?:-([^-\.]+))?(?:_(\d+))?\.(" + ext_sound_str + ")$")
+
+# Regex: YYYYMMDD-HHMMSS[-State][-Location][-Description](_#).ext HTML
+# group(1): YYYYMMDD-HHMMSS
+# group(2): [-State]
+# group(3): [-Location]
+# group(4): [-Description]
+FILENAME_HTML_PATTERN = re.compile(r"^(\d{8}-\d{6})(?:-([^-_\.]+))?(?:-([^-\.]+))?(?:-([^-\.]+))?(?:_(\d+))?\.(" + ext_html_str + ")$")
 
 # Filename style: Android
 # Regex: YYYYMMDD_HHMMSS.ext
@@ -606,6 +635,20 @@ def filename_to_modification_dt(target, recurse, verbose):
     notice("Modifing Media Files")
     file_cnt = 0
     file_eval = 0
+    print(f"{'[COUNTING]':<11} Media files")
+    count = {'image': 0, 'video': 0, 'audio': 0, 'html': 0}
+    for root, dirs, files in os.walk("."):
+        for file in files:
+            filename = file.lower()
+            if FILENAME_IMAGE_PATTERN.match(filename):
+                count['image'] += 1
+            elif FILENAME_HTML_PATTERN.match(filename):
+                count['html'] += 1
+            elif FILENAME_VIDEO_PATTERN.match(filename):
+                count['video'] += 1
+            elif FILENAME_AUDIO_PATTERN.match(filename):
+                count['audio'] += 1
+    
     dir_groups = get_dir_groups(target, recurse)
 
     for root, files in dir_groups.items():
@@ -667,6 +710,7 @@ def filename_to_modification_dt(target, recurse, verbose):
                 sf.write(f'<body><h1 align="center">Summary</h1>\n')
                 sf.write(f'<center><table><tr><td>Summary Date:</td><td>{dtnow}</td></tr>\n')
                 sf.write(f'<tr><td>Summary For:</td><td>{root}</td></tr>\n')
+                sf.write(f"<tr><td>Media Files:</td><td>Images: {count['image']}, Videos: {count['video']}, Audio: {count['audio']}, HTML: {count['html']}</td></tr>\n")
                 sf.write(f'<tr><td>Organized By:</td><td>Media Organizer, v{SVER}</td></tr></table><br>\n')
                 sf.write(f"<table>\n")
                 sf.write(f"""

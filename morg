@@ -662,7 +662,7 @@ def filename_to_modification_dt(target, recurse, verbose):
             with open(summary_path, 'w') as sf:
                 sf.write(f'<!DOCTYPE html><html><head><meta name="robots" content="none">\n')
                 sf.write(f'<title>Summary</title>\n')
-                sf.write(f'<style>table {{ border-collapse: separate; border-spacing: 15px 0px; }}</style>\n')
+                sf.write(f"""<link rel="stylesheet" type="text/css" href="style.css">\n""")
                 sf.write(f'</head>\n')
                 sf.write(f'<body><h1 align="center">Summary</h1>\n')
                 sf.write(f'<center><table><tr><td>Summary Date:</td><td>{dtnow}</td></tr>\n')

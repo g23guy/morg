@@ -73,6 +73,8 @@ LOCATION_TAG = {
 'slc': {'begin': 0, 'end': 0, 'url': 0, 'addr': "Salt Lake City, UT", 'gps': 'N/A'},
 'stg': {'begin': 0, 'end': 0, 'url': 0, 'addr': "St George, UT", 'gps': 'N/A'},
 'tmp': {'begin': 0, 'end': 0, 'url': 1, 'addr': "", 'gps': ''},
+'stg122': {'begin': 0, 'end': 0, 'url': 1, 'addr': "2050 South 1400 East, Apt A122, St George, UT 84790", 'gps': '37.073710292528766,-113.55438523101283'},
+'stg236': {'begin': 0, 'end': 0, 'url': 1, 'addr': "345 North 2450 East #236, St George, UT 84790", 'gps': '37.11267708653555,-113.5348526180132'},
 'mtl217': {'begin': 0, 'end': 0, 'url': 1, 'addr': "217A Thornwood Dr, Mt Laurel Township, NJ 08054", 'gps': '39.97355207645182,-74.87195527373382'},
 'glass244': {'begin': 0, 'end': 0, 'url': 1, 'addr': "244 Pomona Ave, Glassboro, NJ 08028", 'gps': '39.71157245713632,-75.1075983988175'},
 'cleve153': {'begin': 0, 'end': 0, 'url': 1, 'addr': "153 Heather Ln NW, Cleveland, TN 37311", 'gps': '35.17412963875532,-84.9004669604066'},

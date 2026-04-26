@@ -472,16 +472,16 @@ def save_group_html(data):
     tagged_base, target_ext = os.path.splitext(filename)[0], ".html"
     new_path = get_template_filename(root, tagged_base, target_ext)
     new_name = os.path.basename(new_path).lower()
-    print(f"{action_str:<11} {new_name}... ", end="", flush=True)
+    css_name = "style.css"
+    css_path = f"{root}/{css_name}"
     time_frame = f" <em>({rdata['first_year']}-{rdata['last_year']})</em>"
     if rdata['first_year'] == 0:
         time_frame = ''
     elif rdata['last_year'] == 0:
         time_frame = f" <em>({rdata['first_year']}-Present)</em>"
-    with open(new_path, 'w') as f:
-        f.write(f"""<!DOCTYPE html><html><head><meta name="robots" content="none">\n""")
-        f.write(f"<style>")
-        f.write(f"""
+    print(f"{action_str:<11} {css_name}... Done")
+    with open(css_path, 'w') as f:
+        f.write(f"""/* Style for the Year */
 .main {{ 
      border-collapse: separate; 
      border-spacing: 15px 0px; 
@@ -505,7 +505,11 @@ def save_group_html(data):
 .main td:nth-child(5) {{
     width: 75%;
 }}
-</style>\n""")
+\n""")
+    print(f"{action_str:<11} {new_name}... ", end="", flush=True)
+    with open(new_path, 'w') as f:
+        f.write(f"""<!DOCTYPE html><html><head><meta name="robots" content="none">\n""")
+        f.write(f"""<link rel="stylesheet" type="text/css" href="style.css">\n""")
         f.write(f"<title>{title}</title></head><body>\n")
         f.write(f"<h1>Year {filename[:4]}</h1>\n")
         if rdata['gps_url'] == "N/A" or loc == "Missing":

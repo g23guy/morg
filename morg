@@ -636,18 +636,22 @@ def filename_to_modification_dt(target, recurse, verbose):
     file_cnt = 0
     file_eval = 0
     print(f"{'[COUNTING]':<11} Media files")
-    count = {'image': 0, 'video': 0, 'audio': 0, 'html': 0}
+    count = {'image': 0, 'video': 0, 'audio': 0, 'html': 0, 'total': 0}
     for root, dirs, files in os.walk("."):
         for file in files:
             filename = file.lower()
             if FILENAME_IMAGE_PATTERN.match(filename):
                 count['image'] += 1
+                count['total'] += 1
             elif FILENAME_HTML_PATTERN.match(filename):
                 count['html'] += 1
+                count['total'] += 1
             elif FILENAME_VIDEO_PATTERN.match(filename):
                 count['video'] += 1
+                count['total'] += 1
             elif FILENAME_AUDIO_PATTERN.match(filename):
                 count['audio'] += 1
+                count['total'] += 1
     
     dir_groups = get_dir_groups(target, recurse)
 
@@ -710,7 +714,7 @@ def filename_to_modification_dt(target, recurse, verbose):
                 sf.write(f'<body><h1 align="center">Summary</h1>\n')
                 sf.write(f'<center><table><tr><td>Summary Date:</td><td>{dtnow}</td></tr>\n')
                 sf.write(f'<tr><td>Summary For:</td><td>{root}</td></tr>\n')
-                sf.write(f"<tr><td>Media Files:</td><td>Images: {count['image']}, Videos: {count['video']}, Audio: {count['audio']}, HTML: {count['html']}</td></tr>\n")
+                sf.write(f"<tr><td>Media Files:</td><td>Images: {count['image']}, Videos: {count['video']}, Audio: {count['audio']}, HTML: {count['html']}, TOTAL: {count['total']}</td></tr>\n")
                 sf.write(f'<tr><td>Organized By:</td><td>Media Organizer, v{SVER}</td></tr></table><br>\n')
                 sf.write(f"<table>\n")
                 sf.write(f"""

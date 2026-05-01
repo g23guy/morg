@@ -59,7 +59,7 @@ import piexif
 from datetime import datetime, timedelta
 from PIL import Image
 from PIL.ExifTags import TAGS
-import moviepy.editor as mp
+from handbrake import HandBrake
 
 # url 1: https://www.google.com/maps/place/street+city+state+zip/@lat,lon,200m
 # url 2: https://www.google.com/maps/search/?api=1&query=lat,lon
@@ -911,11 +911,19 @@ def process_media(target_input, recurse, adjacent, state_arg, location_arg, desc
                         if ext in ext_images_convert:
                             with Image.open(old_path) as img:
                                 img.convert("RGB").save(new_path, "JPEG", quality=95)
-                        elif ext in ext_videos_convert: 
-                            tmp = mp.VideoFileClip(old_path)
-                            clip = tmp.rotate(90)
-                            clip.write_videofile(new_path, logger=None)
-                            clip.close()
+                        elif ext in ext_videos_convert:
+                            hb = HandBrake()
+                            preset = hb.get_preset("CLI Default")
+#                            preset.preset_list[0]["PresetName"] = "videos"
+                            try:
+                                hb.convert_title(
+                                    old_path, 
+                                    new_path, 
+                                    "1"
+                                )
+                            except Exception as e:
+                                print(f"An error occurred: {e}")
+                                pass
 
                         # Make the converted file have the same time as the source file
                         updated_datetime = set_datetime(new_path, dt)

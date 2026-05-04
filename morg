@@ -82,6 +82,7 @@ LOCATION_TAG = {
 'red6931': {'begin': 0, 'end': 0, 'url': 1, 'addr': "6931 Dennis Ct, Redding, CA 96001", 'gps': '40.516466510500244,-122.36567821864101'}, # Wayne & Linda Record
 'vi3005': {'begin': 0, 'end': 0, 'url': 1, 'addr': "3005 West Packwood Ct, Visalia, CA 93277", 'gps': '36.2947109176429,-119.32378558920523'}, # Wayne & Linda Record
 'rc825': {'begin': 0, 'end': 0, 'url': 1, 'addr': "825 Paradise Drive, Ridgecrest, CA 93555", 'gps': '35.636618004991874,-117.69183314365613'}, # Jason & Ynez Record
+'orem1214': {'begin': 0, 'end': 0, 'url': 1, 'addr': "1214 South 620 West, Orem, UT 84058", 'gps': '40.27535323885997,-111.71009564606535'}, # Lorielle & Nicolle Record
 'provo735': {'begin': 1988, 'end': 1989, 'url': 1, 'addr': "735 North 440 West, Provo, UT 84601", 'gps': '40.243718701168504,-111.66646033139529'}, # Jason & Sheri Record
 'provo6b': {'begin': 1989, 'end': 1992, 'url': 2, 'addr': "Wymount Terrace 6B #344, Provo, UT 84604", 'gps': '40.25825145909716,-111.63865203744004'}, # Jason & Sheri Record
 'provo189': {'begin': 1992, 'end': 1993, 'url': 1, 'addr': "189 South 500 East, Provo, UT 84606", 'gps': '40.23126560116374,-111.64974833062708'}, # Jason & Sheri Record
@@ -1014,11 +1015,10 @@ if __name__ == "__main__":
         parser.print_help()
         sys.exit(1)
     args = parser.parse_args()
-
     target_input = normalize_files_input(args.file)
     if args.convert_remove: args.convert = True 
 
-    elif args.log: display_logs(target_input, args.verbose, all_subdirs=False)
+    if args.log: display_logs(target_input, args.verbose, all_subdirs=False)
     elif args.all_logs: display_logs(target_input, args.verbose, all_subdirs=True)
     elif args.template: create_templates(target_input, args.recurse)
     elif args.reverse: reverse_last_session(target_input, args.recurse)

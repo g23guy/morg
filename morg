@@ -102,7 +102,7 @@ LOCATION_TAG = {
 # Supported extensions
 ext_image_str = "jpg|jpeg|png|bmp|tif|tiff|heic|webp|pgm|ppm|pmb|pnm|jfif|jp2|j2k|jxl|xcf"
 ext_image_convert_str = "heic|tiff|tif"
-ext_video_str = "mp4|mov|mpg|avi|mkv|wmv|webm|3gp"
+ext_video_str = "mp4|mov|mpg|avi|mkv|m4v|wmv|webm|3gp"
 ext_video_convert_str = "mov"
 ext_sound_str = "mp3|wav|snd|m4a|aac|aiff|flac|ogg|amr|mp2"
 ext_html_str = "html|htm"
@@ -116,6 +116,8 @@ ext_all = tuple([f".{ext}" for ext in ext_all_str.split('|')])
 
 URL_BASE = "https://www.google.com/maps"
 SUMMARY_FILE = '0-README.html'
+CSS_FILE = "style.css"
+INDEX_FILE = "index.html"
 log_time = datetime.now().strftime('%Y%m%d_%H%M%S')
 
 # Setup HEIF and MIME
@@ -491,47 +493,50 @@ def get_gpsurl(gps_str, l_val):
             style = 2
     return gps_url, style
 
-def save_group_html(data):
-    action = "template"
-    action_str = "[" + action.upper() + "]"
-    source = "filedata"
-    rdata = data[0]
-    filename = os.path.basename(rdata['ref_name']).lower()
-    root = rdata['root']
-    title = str(rdata['description']).replace('_', ' ').title()
-    loc = rdata['address']
-    tagged_base, target_ext = os.path.splitext(filename)[0], ".html"
-    new_path = get_template_filename(root, tagged_base, target_ext)
-    new_name = os.path.basename(new_path).lower()
-    css_name = "style.css"
+def create_style_css(root):
+    css_name = CSS_FILE
     css_path = f"{root}/{css_name}"
-    time_frame = f" <em>({rdata['first_year']}-{rdata['last_year']})</em>"
-    if rdata['first_year'] == 0:
-        time_frame = ''
-    elif rdata['last_year'] == 0:
-        time_frame = f" <em>({rdata['first_year']}-Present)</em>"
-    print(f"{action_str:<11} {css_name}... Done")
+    notice(f"Creating {css_name}")
     with open(css_path, 'w') as f:
         f.write(f"""/* Style for the Year */
 .main {{ 
      border-collapse: separate; 
      border-spacing: 15px 0px; 
 }}
+
 .main tr {{
   transition: background-color 0.3s ease;
 }}
+
 .main tr:hover {{
   background-color: #ddd;
 }}
+
 .main th,
 .main td {{
     vertical-align: middle;
 }}
+
 .main th:nth-child(-n+4), 
 .main td:nth-child(-n+4) {{
     width: 1%;
     white-space: nowrap;
 }}
+
+.main tr td:nth-child(4) {{
+    width: 100px;  /* Set your fixed dimensions */
+    height: 100px;
+    padding: 15;
+}}
+
+/* Target the image inside that specific cell */
+.main tr td:nth-child(4) img {{
+    width: 100%;
+    height: 100%;
+    object-fit: cover; /* Prevents stretching */
+    display: block;
+}}
+
 .main th:nth-child(5), 
 .main td:nth-child(5) {{
     width: 75%;
@@ -580,17 +585,36 @@ body {{
     }}
 }}
 \n""")
+
+def save_group_html(data):
+    action = "template"
+    action_str = "[" + action.upper() + "]"
+    source = "filedata"
+    rdata = data[0]
+    filename = os.path.basename(rdata['ref_name']).lower()
+    root = rdata['root']
+    title = str(rdata['description']).replace('_', ' ').title()
+    loc = rdata['address']
+    tagged_base, target_ext = os.path.splitext(filename)[0], ".html"
+    new_path = get_template_filename(root, tagged_base, target_ext)
+    new_name = os.path.basename(new_path).lower()
+    time_frame = f" <em>({rdata['first_year']}-{rdata['last_year']})</em>"
+    if rdata['first_year'] == 0:
+        time_frame = ''
+    elif rdata['last_year'] == 0:
+        time_frame = f" <em>({rdata['first_year']}-Present)</em>"
     print(f"{action_str:<11} {new_name}... ", end="", flush=True)
     with open(new_path, 'w') as f:
         f.write(f"""<!DOCTYPE html><html><head><meta name="robots" content="none">\n""")
-        f.write(f"""<link rel="stylesheet" type="text/css" href="style.css">\n""")
+        f.write(f"""<link rel="stylesheet" type="text/css" href="{CSS_FILE}">\n""")
         f.write(f"<title>{title}</title></head><body>\n")
         f.write(f"<h1>Year {filename[:4]}</h1>\n")
         if rdata['gps_url'] == "N/A" or loc == "Missing":
             f.write(f"""<h2>{loc}</h2>\n""")
         else:
             f.write(f"""<h2><a href="{rdata['gps_url']}" target="_blank" rel="noopener noreferrer" style="text-decoration: none;">{loc}</a>{time_frame}</h2>\n""")
-        f.write(f"<h3>Description: {title}</h3>\n\n")
+        f.write(f"<h3>Description: {title}</h3>\n")
+        f.write(f"""<h4>[ <a href="{SUMMARY_FILE}" class="plain">Summary</a> | <a href="{INDEX_FILE}" class="plain">Gallery</a> | <a href="../{INDEX_FILE}" class="plain">Top</a> | <a href="..//{INDEX_FILE}" class="plain">Next Year</a> ]</h4>\n\n""")
         f.write(f"""<p>\n<!-- General narrative of the description group event and activities. -->\n</p>\n\n<table class="main">\n""")
         for file_data in data:
             if file_data['gps_url_style'] == 1:
@@ -604,7 +628,7 @@ body {{
             else:
                 filetype = f"""<a href="{file_data['ref_name']}" target="_blank">{file_data['type'].title()}</a>"""
             map_str = '' if file_data['gps_url'] == "N/A" else f"""<a href="{file_data['gps_url']}" target="_blank">{style_str}Map</a>"""
-            image_str = f"""<a href="{file_data['ref_name']}" target="_blank"><img src="{file_data['ref_name']}" height="50"></a>""" if file_data['type'] == "image" else 'N/A'
+            image_str = f"""<a href="{file_data['ref_name']}"><img src="{file_data['ref_name']}" height="100"></a>""" if file_data['type'] == "image" else 'N/A'
             f.write(f"""<tr><td><a href="{file_data['ref_name']}" target="_blank">{file_data['ref_name']}</a></td><td>{filetype}</td><td>{map_str}</td><td>{image_str}</td>\n<td>\n<!-- image description -->\n</td></tr>\n""")
         f.write(f"</table>\n\n</body></html>\n")
     print("Done")
@@ -614,6 +638,7 @@ def create_templates(target, recurse):
     dir_groups = get_dir_groups(target, recurse)
     for root, files in dir_groups.items():
         print(f"{'[DIR]':<11} {root}")
+        create_style_css(root)
 
         # Initial group
         for key_path in sorted(files):
@@ -676,7 +701,92 @@ def create_templates(target, recurse):
 
     print()
 
+def create_index(target, recurse, verbose):
+    notice("Creating an Index")
+    index_name = INDEX_FILE
+    index_path = index_name
+
+    dir_groups = get_dir_groups(target, recurse)
+    for root, files in dir_groups.items():
+        print(f"{'[DIR]':<11} {root}")
+        create_style_css(root)
+        gallery_files = []
+
+        # Initial group
+        for key_path in sorted(files):
+            filename = os.path.basename(key_path).lower()
+            hmatch = FILENAME_HTML_PATTERN.match(filename)
+            imatch = FILENAME_IMAGE_PATTERN.match(filename)
+            if hmatch: 
+                match = hmatch
+                break
+            elif imatch:
+                match = imatch
+                break
+            else:
+                continue
+              
+        d_val = match.group(4) if match else "N/A"
+        current_key = d_val
+        tagged_base, target_ext = os.path.splitext(filename)[0], ".html"
+        template_file = f"{tagged_base}{target_ext}"
+        for old_path in sorted(files):
+            filename = os.path.basename(old_path).lower()
+            hmatch = FILENAME_HTML_PATTERN.match(filename)
+            imatch = FILENAME_IMAGE_PATTERN.match(filename)
+            if hmatch: 
+                match = hmatch
+            elif imatch:
+                match = imatch
+            else:
+                continue
+            d_val = match.group(4) if match else "N/A"
+            key = d_val
+
+            file_data = {
+                "root": root,
+                "ref_name": filename, 
+                "template": template_file,
+                "key": d_val,
+            }
+            
+            # If the key changes, save the current group and start a new one
+            if key != current_key:
+                tagged_base, target_ext = os.path.splitext(filename)[0], ".html"
+                template_file = f"{tagged_base}{target_ext}"
+                file_data['template'] = template_file
+                current_key = key
+
+            gallery_files.append(file_data)
+
+        with open(index_path, 'w') as f:
+            f.write(f"""<!DOCTYPE html>
+<html lang="en">
+<head>
+    <link rel="stylesheet" type="text/css" href="{CSS_FILE}">
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Photo Gallery</title>
+</head>
+<body>
+    <h2 style="text-align:center;">My Photo Gallery</h2>
+    <h4 style="text-align:center;">[ <a href="{SUMMARY_FILE}" class="plain">Summary</a> | Gallery | <a href="../{INDEX_FILE}" class="plain">Top</a> | <a href="..//{INDEX_FILE}" class="plain">Next Year</a> ]</h4>
+    <div class="gallery">
+""")
+            for image in gallery_files:
+                filename = image['ref_name']
+                match = FILENAME_HTML_PATTERN.match(filename)
+                if not match:
+                    template = image['template']
+                    f.write(f"""        <div class="gallery-item"><a href="{template}"><img src="{filename}" alt="{filename}"></a></div>\n""")
+
+            f.write(f"""    </div>
+</body>
+</html>
+""")
+
 def filename_to_modification_dt(target, recurse, verbose):
+    ### use target instead of os.walk(".")
     notice("Modifing Media Files")
     file_cnt = 0
     file_eval = 0
@@ -760,8 +870,9 @@ def filename_to_modification_dt(target, recurse, verbose):
                 sf.write(f'<center><table><tr><td>Summary Date:</td><td>{dtnow}</td></tr>\n')
                 sf.write(f'<tr><td>Summary For:</td><td>{root}</td></tr>\n')
                 sf.write(f"<tr><td>Media Files:</td><td>Images: {count['image']}, Videos: {count['video']}, Audio: {count['audio']}, HTML: {count['html']}, TOTAL: {count['total']}</td></tr>\n")
-                sf.write(f'<tr><td>Organized By:</td><td>Media Organizer, v{SVER}</td></tr></table><br>\n')
-                sf.write(f"<table>\n")
+                sf.write(f'<tr><td>Organized By:</td><td>Media Organizer, v{SVER}</td></tr>\n')
+                sf.write(f'<tr><td>Navigation:</td><td>[ Summary | <a href="{INDEX_FILE}" class="plain">Gallery</a> | <a href="../{INDEX_FILE}" class="plain">Top</a> | <a href="..//{INDEX_FILE}" class="plain">Next Year</a> ]</td></tr>\n')
+                sf.write(f"</table><br><table>\n")
                 sf.write(f"""
 <tr><td>Filename Format</td><td><strong>YYYYMMDD-HHMMSS[-State][-Location][-Description](_#).ext</strong></td></tr>
 <td>YYYYMMDD-HHMMSS</td><td>Mandatory year, month, day, hour, minute, second the picture was taken</td></tr>
@@ -1030,6 +1141,7 @@ if __name__ == "__main__":
     )
     parser.add_argument("file", nargs='+', help="Target folder or file(s) (e.g. /media/*.jpg)")
     parser.add_argument("-a", "--adjacent", action="store_true", help="Adjacent date logic")
+    parser.add_argument("-b", "--build", action="store_true", help="Build the directory web with: template > index > modified")
     parser.add_argument("-c", "--convert", action="store_true", help="Convert " + ext_image_convert_str + " to jpg, and " + ext_video_convert_str + " to mp4. Converted files inherit source file date and time.")
     parser.add_argument("-C", "--convert-remove", action="store_true", help="Same as --convert and deletes the originals")
     parser.add_argument("-r", "--recurse", action="store_true", default=False, help="Recurse subdirs")
@@ -1040,6 +1152,7 @@ if __name__ == "__main__":
     parser.add_argument("-p", "--template", action="store_true", help="Creates a description template file for the file given")
     parser.add_argument("-g", "--log", action="store_true", help="Display latest JSON log summary")
     parser.add_argument("-G", "--all-logs", action="store_true", help="Display latest JSON log summary in all subdirs")
+    parser.add_argument("-i", "--index", action="store_true", help="Creates an index.html for the directory gallery of images")
     parser.add_argument("-v", "--verbose", action="store_true", help="Enables verbose output")
     parser.add_argument("-s", "--state", help="State tag, Unsupported characters [-._]")
     parser.add_argument("-l", "--location", help="Location tag, Unsupported characters [-.]")
@@ -1067,6 +1180,11 @@ if __name__ == "__main__":
     elif args.reverse: reverse_last_session(target_input, args.recurse)
     elif args.original: restore_original_names(target_input, args.recurse)
     elif args.modified: filename_to_modification_dt(target_input, args.recurse, args.verbose)
+    elif args.index: create_index(target_input, args.recurse, args.verbose)
+    elif args.build:
+        create_templates(target_input, args.recurse)
+        create_index(target_input, args.recurse, args.verbose)
+        filename_to_modification_dt(target_input, args.recurse, args.verbose)
     else: process_media(target_input, args.recurse, args.adjacent, args.state, args.location, args.description, args.yyyymmdd, args.hhmmss, args.time_sequenced, args.force, args.convert, args.convert_remove, args.verbose)
     
 

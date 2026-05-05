@@ -593,6 +593,12 @@ def save_group_html(data):
     rdata = data[0]
     filename = os.path.basename(rdata['ref_name']).lower()
     root = rdata['root']
+    this_year = os.path.basename(root)
+    if re.fullmatch(r'\d{4}', this_year):
+        next_year = int(this_year) + 1
+        next_year = str(next_year)
+    else:
+        next_year = ''
     title = str(rdata['description']).replace('_', ' ').title()
     loc = rdata['address']
     tagged_base, target_ext = os.path.splitext(filename)[0], ".html"
@@ -614,7 +620,7 @@ def save_group_html(data):
         else:
             f.write(f"""<h2><a href="{rdata['gps_url']}" target="_blank" rel="noopener noreferrer" style="text-decoration: none;">{loc}</a>{time_frame}</h2>\n""")
         f.write(f"<h3>Description: {title}</h3>\n")
-        f.write(f"""<h4>[ <a href="{SUMMARY_FILE}" class="plain">Summary</a> | <a href="{INDEX_FILE}" class="plain">Gallery</a> | <a href="../{INDEX_FILE}" class="plain">Top</a> | <a href="..//{INDEX_FILE}" class="plain">Next Year</a> ]</h4>\n\n""")
+        f.write(f"""<h4>[ <a href="{SUMMARY_FILE}" class="plain">Summary</a> | <a href="{INDEX_FILE}" class="plain">Gallery</a> | <a href="../{INDEX_FILE}" class="plain">Top</a> | <a href="../{next_year}/{INDEX_FILE}" class="plain">Next Year</a> ]</h4>\n\n""")
         f.write(f"""<p>\n<!-- General narrative of the description group event and activities. -->\n</p>\n\n<table class="main">\n""")
         for file_data in data:
             if file_data['gps_url_style'] == 1:
@@ -628,7 +634,7 @@ def save_group_html(data):
             else:
                 filetype = f"""<a href="{file_data['ref_name']}" target="_blank">{file_data['type'].title()}</a>"""
             map_str = '' if file_data['gps_url'] == "N/A" else f"""<a href="{file_data['gps_url']}" target="_blank">{style_str}Map</a>"""
-            image_str = f"""<a href="{file_data['ref_name']}"><img src="{file_data['ref_name']}" height="100"></a>""" if file_data['type'] == "image" else 'N/A'
+            image_str = f"""<a href="{file_data['ref_name']}"><img src="{file_data['ref_name']}"></a>""" if file_data['type'] == "image" else 'N/A'
             f.write(f"""<tr><td><a href="{file_data['ref_name']}" target="_blank">{file_data['ref_name']}</a></td><td>{filetype}</td><td>{map_str}</td><td>{image_str}</td>\n<td>\n<!-- image description -->\n</td></tr>\n""")
         f.write(f"</table>\n\n</body></html>\n")
     print("Done")
@@ -711,6 +717,12 @@ def create_index(target, recurse, verbose):
         print(f"{'[DIR]':<11} {root}")
         create_style_css(root)
         gallery_files = []
+        this_year = os.path.basename(root)
+        if re.fullmatch(r'\d{4}', this_year):
+            next_year = int(this_year) + 1
+            next_year = str(next_year)
+        else:
+            next_year = ''
 
         # Initial group
         for key_path in sorted(files):
@@ -770,7 +782,7 @@ def create_index(target, recurse, verbose):
 </head>
 <body>
     <h2 style="text-align:center;">My Photo Gallery</h2>
-    <h4 style="text-align:center;">[ <a href="{SUMMARY_FILE}" class="plain">Summary</a> | Gallery | <a href="../{INDEX_FILE}" class="plain">Top</a> | <a href="..//{INDEX_FILE}" class="plain">Next Year</a> ]</h4>
+    <h4 style="text-align:center;">[ <a href="{SUMMARY_FILE}" class="plain">Summary</a> | Gallery | <a href="../{INDEX_FILE}" class="plain">Top</a> | <a href="../{next_year}/{INDEX_FILE}" class="plain">Next Year</a> ]</h4>
     <div class="gallery">
 """)
             for image in gallery_files:
@@ -817,6 +829,12 @@ def filename_to_modification_dt(target, recurse, verbose):
         action = "updated"
         action_str = "[" + action.upper() + "]"
         source = "filename"
+        this_year = os.path.basename(root)
+        if re.fullmatch(r'\d{4}', this_year):
+            next_year = int(this_year) + 1
+            next_year = str(next_year)
+        else:
+            next_year = ''
         updated_datetime = {'meta': 0, 'fs': 0}
         for this_path in sorted(files):
             file_eval += 1
@@ -871,7 +889,7 @@ def filename_to_modification_dt(target, recurse, verbose):
                 sf.write(f'<tr><td>Summary For:</td><td>{root}</td></tr>\n')
                 sf.write(f"<tr><td>Media Files:</td><td>Images: {count['image']}, Videos: {count['video']}, Audio: {count['audio']}, HTML: {count['html']}, TOTAL: {count['total']}</td></tr>\n")
                 sf.write(f'<tr><td>Organized By:</td><td>Media Organizer, v{SVER}</td></tr>\n')
-                sf.write(f'<tr><td>Navigation:</td><td>[ Summary | <a href="{INDEX_FILE}" class="plain">Gallery</a> | <a href="../{INDEX_FILE}" class="plain">Top</a> | <a href="..//{INDEX_FILE}" class="plain">Next Year</a> ]</td></tr>\n')
+                sf.write(f'<tr><td>Navigation:</td><td>[ Summary | <a href="{INDEX_FILE}" class="plain">Gallery</a> | <a href="../{INDEX_FILE}" class="plain">Top</a> | <a href="../{next_year}/{INDEX_FILE}" class="plain">Next Year</a> ]</td></tr>\n')
                 sf.write(f"</table><br><table>\n")
                 sf.write(f"""
 <tr><td>Filename Format</td><td><strong>YYYYMMDD-HHMMSS[-State][-Location][-Description](_#).ext</strong></td></tr>

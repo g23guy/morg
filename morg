@@ -517,28 +517,28 @@ def create_style_css(root):
     vertical-align: middle;
 }}
 
-.main th:nth-child(-n+4), 
-.main td:nth-child(-n+4) {{
+.main th:nth-child(-n+2), 
+.main td:nth-child(-n+2) {{
     width: 1%;
     white-space: nowrap;
 }}
 
-.main tr td:nth-child(4) {{
+.main tr td:nth-child(1) {{
     width: 100px;  /* Set your fixed dimensions */
     height: 100px;
     padding: 15;
 }}
 
 /* Target the image inside that specific cell */
-.main tr td:nth-child(4) img {{
+.main tr td:nth-child(1) img {{
     width: 100%;
     height: 100%;
     object-fit: cover; /* Prevents stretching */
     display: block;
 }}
 
-.main th:nth-child(5), 
-.main td:nth-child(5) {{
+.main th:nth-child(3), 
+.main td:nth-child(3) {{
     width: 75%;
 }}
 
@@ -635,7 +635,25 @@ def save_group_html(data):
                 filetype = f"""<a href="{file_data['ref_name']}" target="_blank">{file_data['type'].title()}</a>"""
             map_str = '' if file_data['gps_url'] == "N/A" else f"""<a href="{file_data['gps_url']}" target="_blank">{style_str}Map</a>"""
             image_str = f"""<a href="{file_data['ref_name']}"><img src="{file_data['ref_name']}"></a>""" if file_data['type'] == "image" else 'N/A'
-            f.write(f"""<tr><td><a href="{file_data['ref_name']}" target="_blank">{file_data['ref_name']}</a></td><td>{filetype}</td><td>{map_str}</td><td>{image_str}</td>\n<td>\n<!-- image description -->\n</td></tr>\n""")
+#            f.write(f"""<tr><td><a href="{file_data['ref_name']}" target="_blank">{file_data['ref_name']}</a></td><td>{filetype}</td><td>{map_str}</td><td>{image_str}</td>\n<td>\n<!-- image description -->\n</td></tr>\n""")
+            if file_data['type'] == "image":
+                media_str = f"""<a href="{file_data['ref_name']}"><img src="{file_data['ref_name']}" alt="{file_data['ref_name']}" title="{file_data['ref_name']}"></a>"""
+            else:
+                tagged_base, target_ext = os.path.splitext(file_data['ref_name'])[0], ".jpg"
+                matching_file = f"{tagged_base}{target_ext}"
+                if os.path.exists(matching_file):
+                    media_str = f"""<a href="{matching_file}"><img src="{matching_file}" alt="{matching_file}" title="{matching_file}"></a>"""
+                else:
+                    media_str = f"""<a href="{file_data['ref_name']}">{file_data['ref_name']}</a>"""
+            if filetype and map_str:
+                descriptor_str = f"{filetype}<br>{map_str}"
+            elif filetype:
+                descriptor_str = f"{filetype}"
+            elif map_str:
+                descriptor_str = f"{map_str}"
+            else:
+                descriptor_str = ''
+            f.write(f"""<tr><td>{media_str}</td><td>{descriptor_str}</td><td></td>\n<!-- image description -->\n</td></tr>\n""")
         f.write(f"</table>\n\n</body></html>\n")
     print("Done")
 
@@ -790,7 +808,7 @@ def create_index(target, recurse, verbose):
                 match = FILENAME_HTML_PATTERN.match(filename)
                 if not match:
                     template = image['template']
-                    f.write(f"""        <div class="gallery-item"><a href="{template}"><img src="{filename}" alt="{filename}"></a></div>\n""")
+                    f.write(f"""        <div class="gallery-item"><a href="{template}"><img src="{filename}" alt="{filename}" title="{template}"></a></div>\n""")
 
             f.write(f"""    </div>
 </body>

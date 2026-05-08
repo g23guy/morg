@@ -517,29 +517,26 @@ def create_style_css(root):
     vertical-align: middle;
 }}
 
-.main th:nth-child(-n+2), 
-.main td:nth-child(-n+2) {{
-    width: 1%;
-    white-space: nowrap;
+.main tr {{
+    height: 100px;
 }}
 
-.main tr td:nth-child(1) {{
+.main td:first-child, 
+.main th:first-child {{
     width: 100px;  /* Set your fixed dimensions */
     height: 100px;
+    max-width: 100px;
+    max-height: 100px;
+    overflow: hidden;
     padding: 15;
 }}
 
 /* Target the image inside that specific cell */
-.main tr td:nth-child(1) img {{
+.main td:first-child img {{
     width: 100%;
     height: 100%;
     object-fit: cover; /* Prevents stretching */
     display: block;
-}}
-
-.main th:nth-child(3), 
-.main td:nth-child(3) {{
-    width: 75%;
 }}
 
 .plain a {{
@@ -613,6 +610,8 @@ def save_group_html(data):
     with open(new_path, 'w') as f:
         f.write(f"""<!DOCTYPE html><html><head><meta name="robots" content="none">\n""")
         f.write(f"""<link rel="stylesheet" type="text/css" href="{CSS_FILE}">\n""")
+        f.write(f"""<meta charset="UTF-8">\n""")
+        f.write(f"""<meta name="viewport" content="width=device-width, initial-scale=1.0">\n""")
         f.write(f"<title>{title}</title></head><body>\n")
         f.write(f"<h1>Year {filename[:4]}</h1>\n")
         if rdata['gps_url'] == "N/A" or loc == "Missing":
@@ -646,14 +645,14 @@ def save_group_html(data):
                 else:
                     media_str = f"""<a href="{file_data['ref_name']}">{file_data['ref_name']}</a>"""
             if filetype and map_str:
-                descriptor_str = f"{filetype}<br>{map_str}"
+                descriptor_str = f"\n    {filetype}<br>\n    {map_str}\n"
             elif filetype:
-                descriptor_str = f"{filetype}"
+                descriptor_str = f"\n    {filetype}\n"
             elif map_str:
-                descriptor_str = f"{map_str}"
+                descriptor_str = f"\n    {map_str}\n"
             else:
                 descriptor_str = ''
-            f.write(f"""<tr><td>{media_str}</td><td>{descriptor_str}</td><td></td>\n<!-- image description -->\n</td></tr>\n""")
+            f.write(f"""<tr>\n  <td>{media_str}</td>\n  <td>{descriptor_str}  </td>\n  <td><!-- image description -->\n  </td>\n</tr>\n""")
         f.write(f"</table>\n\n</body></html>\n")
     print("Done")
 
@@ -901,6 +900,8 @@ def filename_to_modification_dt(target, recurse, verbose):
                 sf.write(f'<!DOCTYPE html><html><head><meta name="robots" content="none">\n')
                 sf.write(f'<title>Summary</title>\n')
                 sf.write(f"""<link rel="stylesheet" type="text/css" href="style.css">\n""")
+                sf.write(f"""<meta charset="UTF-8">\n""")
+                sf.write(f"""<meta name="viewport" content="width=device-width, initial-scale=1.0">\n""")
                 sf.write(f'</head>\n')
                 sf.write(f'<body><h1 align="center">Summary</h1>\n')
                 sf.write(f'<center><table><tr><td>Summary Date:</td><td>{dtnow}</td></tr>\n')

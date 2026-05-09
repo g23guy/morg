@@ -53,6 +53,7 @@ import argparse
 import mimetypes
 import sys
 import glob
+import subprocess
 import pillow_heif
 import exiftool
 import piexif
@@ -606,7 +607,7 @@ def save_group_html(data):
         time_frame = ''
     elif rdata['last_year'] == 0:
         time_frame = f" <em>({rdata['first_year']}-Present)</em>"
-    print(f"{action_str:<11} {new_name}... ", end="", flush=True)
+    print(f"{action_str:<11} Saving grouped file {new_name}... ", end="", flush=True)
     with open(new_path, 'w') as f:
         f.write(f"""<!DOCTYPE html><html><head><meta name="robots" content="none">\n""")
         f.write(f"""<link rel="stylesheet" type="text/css" href="{CSS_FILE}">\n""")
@@ -628,10 +629,14 @@ def save_group_html(data):
                 style_str = "Media "
             else:
                 style_str = ''
-            if file_data['type'] == "image":
-                filetype = ''
+            if file_data['type'] == "video":
+                duration = get_av_duration(file_data)
+                filetype = f"""<a href="{file_data['ref_name']}" target="_blank">{file_data['type'].title()}{duration}</a>"""
+            elif file_data['type'] == "audio":
+                duration = get_av_duration(file_data)
+                filetype = f"""<a href="{file_data['ref_name']}" target="_blank">{file_data['type'].title()}{duration}</a>"""
             else:
-                filetype = f"""<a href="{file_data['ref_name']}" target="_blank">{file_data['type'].title()}</a>"""
+                filetype = ''
             map_str = '' if file_data['gps_url'] == "N/A" else f"""<a href="{file_data['gps_url']}" target="_blank">{style_str}Map</a>"""
             image_str = f"""<a href="{file_data['ref_name']}"><img src="{file_data['ref_name']}"></a>""" if file_data['type'] == "image" else 'N/A'
 #            f.write(f"""<tr><td><a href="{file_data['ref_name']}" target="_blank">{file_data['ref_name']}</a></td><td>{filetype}</td><td>{map_str}</td><td>{image_str}</td>\n<td>\n<!-- image description -->\n</td></tr>\n""")
@@ -655,6 +660,35 @@ def save_group_html(data):
             f.write(f"""<tr>\n  <td>{media_str}</td>\n  <td>{descriptor_str}  </td>\n  <td><!-- image description -->\n  </td>\n</tr>\n""")
         f.write(f"</table>\n\n</body></html>\n")
     print("Done")
+
+def get_av_duration(file_data):
+    file = f"{file_data['root']}/{file_data['ref_name']}"
+    cmd = [
+        "ffprobe", "-v", "error", 
+        "-show_entries", "format=duration", 
+        "-of", "default=noprint_wrappers=1:nokey=1", 
+        "-sexagesimal", file
+    ]
+    extracted = ''
+
+    try:
+        # Get output (e.g., "0:00:57.190000")
+        output = subprocess.check_output(cmd).decode('utf-8').strip()
+
+        # Extraction logic:
+        # 1. Split at '.' to remove microseconds ("0:00:57")
+        # 2. Split by ':' and take the last two segments
+        time_parts = output.split('.')[0].split(':')
+        mm = time_parts[-2].zfill(2) # Pad with zero if needed
+        ss = time_parts[-1].zfill(2)
+
+        extracted = f" ({mm}:{ss})"
+
+    except subprocess.CalledProcessError as e:
+        print(f"Error processing {file}: {e}")
+
+    return extracted
+
 
 def create_templates(target, recurse):
     notice("Creating Description Templates")
@@ -684,6 +718,7 @@ def create_templates(target, recurse):
             l_val = match.group(3) if match else "N/A"
             d_val = match.group(4) if match else "N/A"
             key = d_val
+            notice(f"Grouping {filename} into {current_key} group")
             gps_str = get_gpsinfo(old_path)
             gps_url, gps_url_style = get_gpsurl(gps_str, l_val)
 #            print(f"s_val='{s_val}', l_val='{l_val}', d_val='{d_val}', gps_str='{gps_str}', gps_url='{gps_url}'")

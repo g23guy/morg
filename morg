@@ -74,6 +74,7 @@ LOCATION_TAG = {
 'slc': {'begin': 0, 'end': 0, 'url': 0, 'addr': "Salt Lake City, UT", 'gps': 'N/A'},
 'stg': {'begin': 0, 'end': 0, 'url': 0, 'addr': "St George, UT", 'gps': 'N/A'},
 'tmp': {'begin': 0, 'end': 0, 'url': 1, 'addr': "", 'gps': ''},
+'stgih': {'begin': 0, 'end': 0, 'url': 1, 'addr': "1380 E Medical Center Dr, St George, UT 84790", 'gps': '37.096860970347116,-113.55399003008878'}, # Intermountain Health St George Regional Hospital
 'stg122': {'begin': 0, 'end': 0, 'url': 1, 'addr': "2050 South 1400 East, Apt A122, St George, UT 84790", 'gps': '37.073710292528766,-113.55438523101283'}, # Laura Record
 'stg236': {'begin': 0, 'end': 0, 'url': 1, 'addr': "345 North 2450 East #236, St George, UT 84790", 'gps': '37.11267708653555,-113.5348526180132'}, # Linda Record
 'mtl217': {'begin': 0, 'end': 0, 'url': 1, 'addr': "217A Thornwood Dr, Mt Laurel Township, NJ 08054", 'gps': '39.97355207645182,-74.87195527373382'}, # Wayne & Linda Record
@@ -624,7 +625,7 @@ def save_group_html(data):
         f.write(f"""<p>\n<!-- General narrative of the description group event and activities. -->\n</p>\n\n<table class="main">\n""")
         for file_data in data:
             if file_data['gps_url_style'] == 1:
-                style_str = "House "
+                style_str = "This "
             elif file_data['gps_url_style'] == 2:
                 style_str = "Media "
             else:
@@ -848,6 +849,7 @@ def create_index(target, recurse, verbose):
 </body>
 </html>
 """)
+    print()
 
 def filename_to_modification_dt(target, recurse, verbose):
     ### use target instead of os.walk(".")

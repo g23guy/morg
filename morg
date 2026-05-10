@@ -184,6 +184,17 @@ SSWINDOWS_PATTERN = re.compile(r"^Screenshot[_ ](\d{4}-\d{2}-\d{2})[_ ](\d{6})\.
 def notice(string):
     print(f"{'[NOTICE]':<11} {string}")
 
+def msg(action, msg, flush=False):
+    if action:
+        action_str = "[" + action.upper() + "]"
+        if flush:
+            print(f"{action_str:<11} {msg}", end="", flush=True)
+        else:
+            print(f"{action_str:<11} {msg}")
+    else:
+        print(f"{msg}")
+
+
 def get_mime_list(filepath):
     mime_type, _ = mimetypes.guess_type(filepath)
     if mime_type:
@@ -587,7 +598,6 @@ body {{
 
 def save_group_html(data):
     action = "template"
-    action_str = "[" + action.upper() + "]"
     source = "filedata"
     rdata = data[0]
     filename = os.path.basename(rdata['ref_name']).lower()
@@ -608,7 +618,7 @@ def save_group_html(data):
         time_frame = ''
     elif rdata['last_year'] == 0:
         time_frame = f" <em>({rdata['first_year']}-Present)</em>"
-    print(f"{action_str:<11} Saving grouped file {new_name}... ", end="", flush=True)
+    msg(action, f"Saving grouped file {new_name}... ", flush=True)
     with open(new_path, 'w') as f:
         f.write(f"""<!DOCTYPE html><html><head><meta name="robots" content="none">\n""")
         f.write(f"""<link rel="stylesheet" type="text/css" href="{CSS_FILE}">\n""")
@@ -660,7 +670,7 @@ def save_group_html(data):
                 descriptor_str = '\n'
             f.write(f"""<tr>\n  <td>{media_str}</td>\n  <td>{descriptor_str}  </td><td>\n<!-- image description -->\n  </td>\n</tr>\n""")
         f.write(f"</table>\n\n</body></html>\n")
-    print("Done")
+    msg('', "Done")
 
 def get_av_duration(file_data):
     file = f"{file_data['root']}/{file_data['ref_name']}"
@@ -686,7 +696,7 @@ def get_av_duration(file_data):
         extracted = f" ({mm}:{ss})"
 
     except subprocess.CalledProcessError as e:
-        print(f"Error processing {file}: {e}")
+        msg('error', f"Processing {file}: {e}")
 
     return extracted
 
@@ -695,7 +705,7 @@ def create_templates(target, recurse):
     notice("Creating Description Templates")
     dir_groups = get_dir_groups(target, recurse)
     for root, files in dir_groups.items():
-        print(f"{'[DIR]':<11} {root}")
+        msg('dir', root)
         create_style_css(root)
 
         # Initial group
@@ -719,7 +729,7 @@ def create_templates(target, recurse):
             l_val = match.group(3) if match else "N/A"
             d_val = match.group(4) if match else "N/A"
             key = d_val
-            notice(f"Grouping {filename} into {current_key} group")
+            msg('grouping', f"{current_key} group -> {filename}")
             gps_str = get_gpsinfo(old_path)
             gps_url, gps_url_style = get_gpsurl(gps_str, l_val)
 #            print(f"s_val='{s_val}', l_val='{l_val}', d_val='{d_val}', gps_str='{gps_str}', gps_url='{gps_url}'")
@@ -767,7 +777,7 @@ def create_index(target, recurse, verbose):
 
     dir_groups = get_dir_groups(target, recurse)
     for root, files in dir_groups.items():
-        print(f"{'[DIR]':<11} {root}")
+        msg('dir', root)
         create_style_css(root)
         gallery_files = []
         this_year = os.path.basename(root)
@@ -856,7 +866,7 @@ def filename_to_modification_dt(target, recurse, verbose):
     notice("Modifing Media Files")
     file_cnt = 0
     file_eval = 0
-    print(f"{'[COUNTING]':<11} Media files")
+    msg('counting', "Media Files")
     count = {'image': 0, 'video': 0, 'audio': 0, 'html': 0, 'total': 0}
     for root, dirs, files in os.walk("."):
         for file in files:
@@ -877,11 +887,10 @@ def filename_to_modification_dt(target, recurse, verbose):
     dir_groups = get_dir_groups(target, recurse)
 
     for root, files in dir_groups.items():
-        print(f"{'[DIR]':<11} {root}")
+        msg('dir', root)
         change_log = []
         html_files = []
         action = "updated"
-        action_str = "[" + action.upper() + "]"
         source = "filename"
         this_year = os.path.basename(root)
         if re.fullmatch(r'\d{4}', this_year):
@@ -905,7 +914,7 @@ def filename_to_modification_dt(target, recurse, verbose):
                     html_files.append(filename)
 
             if match:
-                print(f"{action_str:<11} {filename} -> ", end="", flush=True)
+                msg(action, f"{filename} -> ", flush=True)
                 file_cnt += 1
                 try:
                     dt = datetime.strptime(match.group(1), "%Y%m%d-%H%M%S")
@@ -927,7 +936,7 @@ def filename_to_modification_dt(target, recurse, verbose):
                     "action": action, 
                     "status": "success"
                 })
-                print(f"{new_name}")
+                msg('', new_name)
 
             dtnow = datetime.now().strftime('%B %d, %Y')
             summary_path = os.path.join(root, SUMMARY_FILE)
@@ -997,8 +1006,7 @@ to know more about a picture or video, open the .html file with same description
         print()
 
     if file_cnt > 0: display_logs(target_input, verbose, all_subdirs=False)
-    action_str = "[SUMMARY]"
-    print(f"{action_str:<11} Processed {file_cnt} matching files out of {file_eval} found\n")
+    msg('summary', f"Processed {file_cnt} matching files out of {file_eval} found\n")
 
 def process_media(target_input, recurse, adjacent, state_arg, location_arg, description_arg, given_date, given_time, time_sequenced, forced, convert, convert_remove, verbose):
     notice("Organizing Media Files")
@@ -1019,7 +1027,7 @@ def process_media(target_input, recurse, adjacent, state_arg, location_arg, desc
         except Exception: continue
 
     for root, files in dir_groups.items():
-        print(f"{'[DIR]':<11} {root}")
+        msg('dir', f"{root}")
         change_log, last_date, last_source = [], None, None
         updated_datetime = {'meta': 0, 'fs': 0}
         for old_path in sorted(files):
@@ -1057,7 +1065,7 @@ def process_media(target_input, recurse, adjacent, state_arg, location_arg, desc
                         dt, source = override_dt(dt, given_date, given_time)
                     else:
                         dt, source = last_date, "adjacent"
-            except Exception as e: print(f"DT Error {filename}: {e}")
+            except Exception as e: msg('error', f"DT {filename}: {e}")
 
             if (ext in ('.jpeg')):
                 target_ext = '.jpg'
@@ -1111,16 +1119,15 @@ def process_media(target_input, recurse, adjacent, state_arg, location_arg, desc
                     "status": "success"
                 })
                 action_str = "[" + action.upper() + "]"
-                print(f"{action_str:<11} {filename} -> {new_name}")
+                msg(action, f"{filename} -> {new_name}")
                 last_date, last_source = dt, source
-            except Exception as e: print(f"Error {filename}: {e}")
+            except Exception as e: msg('error', f"{filename}: {e}")
 
             if convert:
                 updated_datetime = {'meta': 0, 'fs': 0}
                 if ext in ext_images_convert or ext in ext_videos_convert: 
                     try:
                         action = "converted"
-                        action_str = "[" + action.upper() + "]"
                         old_path = new_path
                         filename = os.path.basename(new_path)
                         if ext in ext_images_convert:
@@ -1136,7 +1143,7 @@ def process_media(target_input, recurse, adjacent, state_arg, location_arg, desc
                             new_path = os.path.join(root, new_name)
                             counter += 1
 
-                        print(f"{action_str:<11} {filename} -> ", end="", flush=True)
+                        msg(action, f"{filename} -> ", flush=True)
                         if ext in ext_images_convert:
                             with Image.open(old_path) as img:
                                 img.convert("RGB").save(new_path, "JPEG", quality=95)
@@ -1151,7 +1158,7 @@ def process_media(target_input, recurse, adjacent, state_arg, location_arg, desc
                                     "1"
                                 )
                             except Exception as e:
-                                print(f"An error occurred: {e}")
+                                msg('error', f"handbrake: {e}")
                                 pass
 
                         # Make the converted file have the same time as the source file
@@ -1172,17 +1179,15 @@ def process_media(target_input, recurse, adjacent, state_arg, location_arg, desc
                             "action": action, 
                             "status": "success"
                         })
-                        print(f"{new_name}")
+                        msg('', f"{new_name}")
                         file_eval += 1
                         file_cnt += 1
 
                         if convert_remove: 
                             if ext in ext_videos_convert: 
-                                action_str = '[SKIPPED]'
-                                print(f"{action_str:<11} {filename}, Video conversion experimental, delete manually.")
+                                msg('skipped', "{filename}, Video conversion experimental, delete manually.")
                             else:
-                                action_str = '[DELETED]'
-                                print(f"{action_str:<11} {filename}")
+                                msg('deleted', f"{filename}")
                                 os.remove(old_path)
 
                     except Exception as e: print(f"Error {filename}: {e}")
@@ -1193,8 +1198,7 @@ def process_media(target_input, recurse, adjacent, state_arg, location_arg, desc
             print()
 
     if file_cnt > 0 and not recurse: display_logs(target_input, verbose, all_subdirs=False)
-    action_str = "[SUMMARY]"
-    print(f"{action_str:<11} Processed {file_cnt} matching files out of {file_eval} found\n")
+    msg('summary', f"Processed {file_cnt} matching files out of {file_eval} found\n")
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(

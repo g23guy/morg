@@ -622,7 +622,7 @@ def save_group_html(data):
             f.write(f"""<h2><a href="{rdata['gps_url']}" target="_blank" rel="noopener noreferrer" style="text-decoration: none;">{loc}</a>{time_frame}</h2>\n""")
         f.write(f"<h3>Description: {title}</h3>\n")
         f.write(f"""<h4>[ <a href="{SUMMARY_FILE}" class="plain">Summary</a> | <a href="{INDEX_FILE}" class="plain">Gallery</a> | <a href="../{INDEX_FILE}" class="plain">Top</a> | <a href="../{next_year}/{INDEX_FILE}" class="plain">Next Year</a> ]</h4>\n\n""")
-        f.write(f"""<p>\n<!-- General narrative of the description group event and activities. -->\n</p>\n\n<table class="main">\n""")
+        f.write(f"""<p>\n<!-- Group description -->\n</p>\n\n<table class="main">\n""")
         for file_data in data:
             if file_data['gps_url_style'] == 1:
                 style_str = "This "
@@ -657,8 +657,8 @@ def save_group_html(data):
             elif map_str:
                 descriptor_str = f"\n    {map_str}\n"
             else:
-                descriptor_str = ''
-            f.write(f"""<tr>\n  <td>{media_str}</td>\n  <td>{descriptor_str}  </td>\n  <td><!-- image description -->\n  </td>\n</tr>\n""")
+                descriptor_str = '\n'
+            f.write(f"""<tr>\n  <td>{media_str}</td>\n  <td>{descriptor_str}  </td><td>\n<!-- image description -->\n  </td>\n</tr>\n""")
         f.write(f"</table>\n\n</body></html>\n")
     print("Done")
 
@@ -728,7 +728,7 @@ def create_templates(target, recurse):
             elif s_val == None and l_val == None and d_val == None:
                 address = "Missing"
             elif s_val != None and l_val != None:
-                address = f"{l_val.title()}, {s_val.upper()}"
+                address = f"{l_val.replace('_', ' ').title()}, {s_val.upper()}"
             else:
                 address = "Unknown"
 

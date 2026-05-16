@@ -536,10 +536,10 @@ def create_style_css(root):
 
 .main td:first-child, 
 .main th:first-child {{
-    width: 100px;  /* Set your fixed dimensions */
-    height: 100px;
-    max-width: 100px;
-    max-height: 100px;
+    width: 250px;  /* Set your fixed dimensions */
+    height: 250px;
+    max-width: 250px;
+    max-height: 250px;
     overflow: hidden;
     padding: 15;
 }}
@@ -1045,6 +1045,8 @@ def process_media(target_input, recurse, adjacent, state_arg, location_arg, desc
             if forced:
                 match = False
 
+#            msg('matching', f"Group 1: {match.group(1)}") if match else msg('debug', f"{old_path}: No match")
+
             try:
                 if match:
                     if overridden:
@@ -1065,7 +1067,9 @@ def process_media(target_input, recurse, adjacent, state_arg, location_arg, desc
                         dt, source = override_dt(dt, given_date, given_time)
                     else:
                         dt, source = last_date, "adjacent"
-            except Exception as e: msg('error', f"DT {filename}: {e}")
+            except Exception as e:
+                msg('error', f"DT {filename}: {e}")
+                continue
 
             if (ext in ('.jpeg')):
                 target_ext = '.jpg'
@@ -1073,7 +1077,7 @@ def process_media(target_input, recurse, adjacent, state_arg, location_arg, desc
                 target_ext = '.tif'
             else:
                 target_ext = ext
-            
+
             tagged_base = dt.strftime('%Y%m%d-%H%M%S')
             for val in [s_val, l_val, d_val]:
                 if val: tagged_base += f"-{val.lower()}"
@@ -1243,10 +1247,10 @@ if __name__ == "__main__":
     if len(sys.argv) == 1: 
         print(f"LOCATION TAGS")
         print(json.dumps(LOCATION_TAG, indent=4))
-        print('url 1: https://www.google.com/maps/place/street+city+state+zip/@lat,lon,200m')
-        print('url 2: https://www.google.com/maps/search/?api=1&query=lat,lon')
         print(f"\nMedia Organizer, v{SVER}\n")
         parser.print_help()
+        print(f"""\nurl 1: <a href="https://www.google.com/maps/place/street+city+state+zip/@lat,lon,200m" target="_blank"></a>""")
+        print(f"""url 2: <a href="https://www.google.com/maps/search/?api=1&query=lat,lon" target="_blank"></a>\n\n""")
         sys.exit(1)
     args = parser.parse_args()
     target_input = normalize_files_input(args.file)

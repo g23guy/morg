@@ -48,6 +48,7 @@ SVER = '0.9.5_dev'
 import os
 import re
 import json
+import copy
 import markdown
 import argparse
 import mimetypes
@@ -510,7 +511,7 @@ def reverse_last_session(target_path, recurse):
                     print(f"[REVERSED]  {e['new_name']} -> {e['orig_name']}")
         print()
 
-def restore_original_names(target_path, recurse):
+def restore_original_names_old(target_path, recurse):
     notice("Restoring Media Files to the Original Names, Except Converted Files")
     # once files are converted, they are not converted back
     logs = get_all_logs(target_path, recurse)
@@ -530,6 +531,40 @@ def restore_original_names(target_path, recurse):
                         print(f"[RESTORED]  {entry['new_name']} -> {entry['orig_name']}")
     for log_path in logs: os.remove(log_path)
     if os.path.exists(summary_path): os.remove(summary_path)
+    print()
+
+def restore_original_names(target_path, recurse):
+    notice("Restoring Media Files to the Original Names, Except Converted Files")
+    recurse = False # unsupported right now
+    root = target_path['root']
+    # once files are converted, they are not converted back
+    mdata = get_media_data(root)
+    if not mdata: return
+
+    for entry in mdata:
+        if entry.get('status') == 'success':
+            curr, orig = entry.get('new_name'), entry.get('orig_name')
+            if entry.get('action') == 'converted':
+                msg('converted', f"{orig} -> {curr}: Cannot be restored")
+            elif os.path.exists(curr):
+                os.rename(curr, orig)
+                msg('restored', f"{curr} -> {orig}")
+
+    logs = get_all_logs(target_path, recurse)
+    summary_path = os.path.join(root, SUMMARY_FILE)
+    mdata_path = os.path.join(root, MEDIA_DATA_FILE)
+
+    for log_path in logs: os.remove(log_path)
+    if os.path.exists(summary_path): os.remove(summary_path)
+    if os.path.exists(mdata_path): os.remove(mdata_path)
+    extensions = ['*.html', '*.css']
+    files = []
+    for ext in extensions:
+        files.extend(glob.glob(ext))
+    for f in files:
+        try:
+            os.remove(f)
+        except Exception: pass
     print()
 
 def get_gpsurl(gps_str, l_val):
@@ -795,7 +830,14 @@ def save_group_html(this_data):
             if entry['map_style'] == 1:
                 style_str = "This "
             elif entry['map_style'] == 2:
-                style_str = "Media "
+                if media_type == "image":
+                    style_str = "Photo "
+                elif media_type == "video":
+                    style_str = "Video "
+                elif media_type == "audio":
+                    style_str = "Audio "
+                else:
+                    style_str = ''
             else:
                 style_str = ''
             if media_type == "video" or media_type == "audio":
@@ -878,14 +920,14 @@ def create_index(target, recurse, verbose):
         <div class="gallery-item">
             <div class="media-container">
                 <a href="{entry['new_name']}" target="_blank" style="width:100%; height:100%;">
-                    <img src="{entry['new_name']}" alt="{entry['new_name']}" title="{entry['title']}">
+                    <img src="{entry['new_name']}" alt="{entry['new_name']}">
                 </a>
             </div>
             <div class="content-box">
                 <div class="link-group">
                     <a href="{entry['group_name']}">Details</a>
                     <a href="{entry['new_name']}" target="_blank">Photo</a>
-                    {entry['title']}
+<!-- gallery_description -->{entry['gallery_description']}
                 </div>
             </div>
         </div>
@@ -904,7 +946,7 @@ def create_index(target, recurse, verbose):
                     <a href="{entry['group_name']}">Details</a>
                     <a href="{entry['cover_name']}" target="_blank">Photo</a>
                     <a href="{entry['new_name']}" target="_blank">Video</a>
-                    {entry['title']}
+<!-- gallery_description -->{entry['gallery_description']}
                 </div>
             </div>
         </div>
@@ -925,7 +967,7 @@ def create_index(target, recurse, verbose):
                 <div class="link-group">
                     <a href="{entry['group_name']}">Details</a>
                     <a href="{entry['cover_name']}" target="_blank">Photo</a>
-                    {entry['title']}
+<!-- gallery_description -->{entry['gallery_description']}
                 </div>
             </div>
         </div>
@@ -983,12 +1025,12 @@ def filename_to_modification_dt(target, recurse, verbose):
                     html_files.append(filename)
 
             if match:
-                msg(action, f"{filename} -> ", flush=True)
                 file_cnt += 1
                 try:
                     dt = datetime.strptime(match.group(1), "%Y%m%d-%H%M%S")
                     updated_datetime = set_datetime(this_path, dt)
-                except Exception as e: print(f"Error: {e} => ", end='', flush=True)
+                    msg(action, f"{updated_datetime['meta']} {updated_datetime['fs']}: {filename} -> ", flush=True)
+                except Exception as e: msg('error', f"filename_to_modification_dt, updated_datetime: {e} => ", end='', flush=True)
 
                 change_log.append({
                     "orig_name": filename, 
@@ -1130,7 +1172,7 @@ def process_media(target_input, recurse, adjacent, state_arg, location_arg, desc
                         dt = datetime.strptime(match.group(1), "%Y%m%d-%H%M%S")
                         dt, source = override_dt(dt, given_date, given_time)
                     else:
-                        if (match.group(2) or "") == s_val and (match.group(3) or "") == l_val and (match.group(4) or "") == d_val: continue
+#                        if (match.group(2) or "") == s_val and (match.group(3) or "") == l_val and (match.group(4) or "") == d_val: continue
                         dt, source = datetime.strptime(match.group(1), "%Y%m%d-%H%M%S"), "existing"
                 else:
                     if ext not in extensions: continue
@@ -1167,11 +1209,11 @@ def process_media(target_input, recurse, adjacent, state_arg, location_arg, desc
                 new_path = os.path.join(root, new_name)
                 counter += 1
             
-            if os.path.abspath(new_path) == os.path.abspath(old_path) and not forced: continue
+#            if os.path.abspath(new_path) == os.path.abspath(old_path) and not forced: continue
 
             try:
-                action = "renamed"
                 file_cnt += 1
+                renamed = False
                 if time_sequenced:
                     if not given_time:
                         given_time = datetime.strftime(dt, "%H%M%S")
@@ -1179,7 +1221,12 @@ def process_media(target_input, recurse, adjacent, state_arg, location_arg, desc
                     current_time += timedelta(seconds=4)
                     given_time = current_time.strftime("%H%M%S")
                         
-                os.rename(old_path, new_path)
+                if os.path.abspath(new_path) != os.path.abspath(old_path):
+                    renamed = True
+                    action = "renamed"
+                    os.rename(old_path, new_path)
+                else:
+                    action = "review"
                 if overridden:
                     updated_datetime = set_datetime(new_path, dt)
 
@@ -1197,13 +1244,14 @@ def process_media(target_input, recurse, adjacent, state_arg, location_arg, desc
 
                 d['root'] = root
                 d['new_name'] = new_name
-                d['prev_name'] = filename
+                if renamed: d['prev_name'] = filename
                 if not d['orig_name']: d['orig_name'] = filename
                 d['group_name'] = f"group-{d_val}.html"
                 d['state'] = s_val
                 d['location'] = l_val
                 d['description'] = d_val
                 d['title'] = d_val.replace('_', ' ').title()
+                d['gallery_description'] = d['title']
                 if l_val in LOCATION_TAG:
                     d['first_year'] = LOCATION_TAG[l_val]['begin']
                     d['last_year'] = LOCATION_TAG[l_val]['end']
@@ -1222,11 +1270,11 @@ def process_media(target_input, recurse, adjacent, state_arg, location_arg, desc
                 d['rev'] += 1
                 d['action'] = action
                 d['status'] = 'success'
-                change_log.append(d)
-                action_str = "[" + action.upper() + "]"
-                msg(action, f"{filename} -> {new_name}")
+
+                mdata_dict[new_name] = d
+                msg(action, f"{d['updated_datetime']['meta']} {d['updated_datetime']['fs']}: {filename} -> {new_name}")
                 last_date, last_source = dt, source
-            except Exception as e: msg('error', f"process_media: rename {filename}: {e}")
+            except Exception as e: msg('error', f"process_media: {action} {filename}: {e}")
 
             if convert:
                 updated_datetime = {'meta': 0, 'fs': 0}
@@ -1268,7 +1316,7 @@ def process_media(target_input, recurse, adjacent, state_arg, location_arg, desc
                         # Make the converted file have the same time as the source file
                         updated_datetime = set_datetime(new_path, dt)
 
-                        c = d
+                        c = copy.deepcopy(d)
                         c['root'] = root
                         c['orig_name'] = filename
                         c['new_name'] = new_name
@@ -1279,9 +1327,9 @@ def process_media(target_input, recurse, adjacent, state_arg, location_arg, desc
                         c['date_source'] = source
                         c['action'] = action
                         c['rev'] += 1
-                        c['status'] = 'success'
-                        change_log.append(c)
-                        msg('', f"{new_name}")
+                        c['status'] = 'find'
+                        mdata_dict[new_name] = c
+                        msg('', f"{new_name}  {c['updated_datetime']['meta']} {c['updated_datetime']['fs']}")
                         file_eval += 1
                         file_cnt += 1
 
@@ -1294,10 +1342,13 @@ def process_media(target_input, recurse, adjacent, state_arg, location_arg, desc
 
                     except Exception as e: print(f"Error {filename}: {e}")
 
+        mdata_list = list(mdata_dict.values())
+        mdata = sorted(mdata_list, key=lambda x: x["new_name"])
+        with open(os.path.join(root, f"{MEDIA_DATA_FILE}"), 'w') as f:
+            json.dump(mdata, f, indent=4)
+
         if change_log:
             with open(os.path.join(root, f"process_log_{log_time}.json"), 'w') as f:
-                json.dump(change_log, f, indent=4)
-            with open(os.path.join(root, f"{MEDIA_DATA_FILE}"), 'w') as f:
                 json.dump(change_log, f, indent=4)
             print()
 

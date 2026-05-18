@@ -118,8 +118,10 @@ ext_all = tuple([f".{ext}" for ext in ext_all_str.split('|')])
 
 URL_BASE = "https://www.google.com/maps"
 SUMMARY_FILE = '0-README.html'
-CSS_FILE = "style.css"
+CSS_FILE_MAIN = "style.css"
+CSS_FILE_GALLERY = "gallery.css"
 INDEX_FILE = "index.html"
+MEDIA_DATA_FILE = "mediadata.json"
 log_time = datetime.now().strftime('%Y%m%d_%H%M%S')
 
 # Setup HEIF and MIME
@@ -194,6 +196,52 @@ def msg(action, msg, flush=False):
     else:
         print(f"{msg}")
 
+def create_default_entry():
+    entry = {
+        "root": '', # root of the directory
+        "new_name": '', # the new filename being used
+        "prev_name": '', # the previous filename used, used to restore last session
+        "orig_name": '', # the original filename, used to restore original filenames
+        "cover_name": '', # for audio/video file, the .jpg that covers the media
+        "group_name": '', # the group html file
+        "group_description": '', # the group description in the group html file
+        "media_description": '', # the individual file's description in the group html file
+        "gallery_description": '', # the caption used for a gallery tile
+        "year": 0, # the year of this media file
+        "state": '', # state code like ut, ca, vt, etc
+        "location": '', # the city or the location code for LOCATION_TAG lookup
+        "description": '', # description for a group of files
+        "title": '', # underscores are changed to spaces and the string coverted to initial caps
+        "first_year": 0, # first year living at this address
+        "last_year": 0, # last year living at this address
+        "map_style": 0, # 0: None, 1: https://www.google.com/maps/place/street+city+state+zip/@lat,lon,200m, 2: https://www.google.com/maps/search/?api=1&query=lat,lon
+        "map_url": '', # the google map string to identify the map location of the media
+        "gps": '', # the gps coordinates found in the media metadata
+        "address": '', # the address string of the media location
+        "mime_type": [], # general and type
+        "duration": '', # the duration in mm:ss of audio/video files
+        "updated_datetime": {
+            "meta": 0, # 0: date/time could not be written to the creation date/time metadata, 1: successful update to the metadata
+            "fs": 0 # same as meta, but for the filesystem's modification date/time
+        },
+        "date_used": '', # the date used for renaming files
+        "date_source": '', # where the date_used came from
+        "action": '', # what last happend
+        "invalid": '', # invalid key above if found
+        "rev": 0, # update revision
+        "status": '', # unused for now
+    }
+
+    return entry
+
+def get_media_data(path):
+    file = f"{path}/{MEDIA_DATA_FILE}"
+    if os.path.exists(file):
+        with open(file, 'r') as f:
+            data = json.load(f)
+    else:
+        data = []
+    return data
 
 def get_mime_list(filepath):
     mime_type, _ = mimetypes.guess_type(filepath)
@@ -201,6 +249,14 @@ def get_mime_list(filepath):
         parts = mime_type.split('/')
         return [parts[0], parts[-1]]
     return ["unknown", "unknown"]
+
+def get_year(file):
+    match = re.match(r'^\d{4}', file)
+    if match:
+        year = int(match.group())
+    else:
+        year = 0
+    return year
 
 def get_gpsinfo(filepath):
     """Extracts GPS Latitude and Longitude using ExifToolHelper."""
@@ -398,7 +454,7 @@ def print_log_table(log_path, verbose):
         if not log_data: return
 
         # Calculate widths based on content
-        w_orig = max(len(e['original_name']) for e in log_data)
+        w_orig = max(len(e['orig_name']) for e in log_data)
         w_new = max(len(e['new_name']) for e in log_data)
         w_used = max(len(e['date_used']) for e in log_data)
         w_source = max(len(e['date_source']) for e in log_data)
@@ -413,13 +469,13 @@ def print_log_table(log_path, verbose):
             print(header)
             print("-" * len(header))
             for e in log_data:
-                print(f"{e['original_name']:<{w_orig}} | {e['new_name']:<{w_new}} | {e['action'].upper():<{w_action}} | {e['date_used']:<{w_used}} | {e['date_source']:<{w_source}} | {e['updated_datetime']['meta']:<4} | {e['updated_datetime']['fs']:<2} | {e['mime_type'][0]:<10}")
+                print(f"{e['orig_name']:<{w_orig}} | {e['new_name']:<{w_new}} | {e['action'].upper():<{w_action}} | {e['date_used']:<{w_used}} | {e['date_source']:<{w_source}} | {e['updated_datetime']['meta']:<4} | {e['updated_datetime']['fs']:<2} | {e['mime_type'][0]:<10}")
         else:
             header = f"{'ORIGINAL_NAME':<{w_orig}} | {'NEW_NAME':<{w_new}} | {'ACTION':<{w_action}} | {'DATE':<{w_used}} | {'SOURCE':<{w_source}} | {'META':<4} | {'FS':<2} | {'GPS':<{w_gps}} | {'TYPE':<10}"
             print(header)
             print("-" * len(header))
             for e in log_data:
-                print(f"{e['original_name']:<{w_orig}} | {e['new_name']:<{w_new}} | {e['action'].upper():<{w_action}} | {e['date_used']:<{w_used}} | {e['date_source']:<{w_source}} | {e['updated_datetime']['meta']:<4} | {e['updated_datetime']['fs']:<2} | {e['gps']:<{w_gps}} | {e['mime_type'][0]:<10}")
+                print(f"{e['orig_name']:<{w_orig}} | {e['new_name']:<{w_new}} | {e['action'].upper():<{w_action}} | {e['date_used']:<{w_used}} | {e['date_source']:<{w_source}} | {e['updated_datetime']['meta']:<4} | {e['updated_datetime']['fs']:<2} | {e['gps']:<{w_gps}} | {e['mime_type'][0]:<10}")
     except Exception as e:
         print(f"Error reading log {log_path}: {e}")
 
@@ -446,12 +502,12 @@ def reverse_last_session(target_path, recurse):
     if logs:
         with open(logs[-1], 'r') as f:
             for e in json.load(f):
-                curr, orig = os.path.join(os.path.dirname(logs[-1]), e['new_name']), os.path.join(os.path.dirname(logs[-1]), e['original_name'])
+                curr, orig = os.path.join(os.path.dirname(logs[-1]), e['new_name']), os.path.join(os.path.dirname(logs[-1]), e['orig_name'])
                 if e.get('action') == 'converted':
-                    print(f"[CONVERTED] {e['original_name']} -> {e['new_name']}: Cannot be reversed")
+                    print(f"[CONVERTED] {e['orig_name']} -> {e['new_name']}: Cannot be reversed")
                 elif os.path.exists(curr): 
                     os.rename(curr, orig)
-                    print(f"[REVERSED]  {e['new_name']} -> {e['original_name']}")
+                    print(f"[REVERSED]  {e['new_name']} -> {e['orig_name']}")
         print()
 
 def restore_original_names(target_path, recurse):
@@ -466,12 +522,12 @@ def restore_original_names(target_path, recurse):
         with open(log_path, 'r') as f:
             for entry in json.load(f):
                 if entry.get('status') == 'success':
-                    curr, orig = os.path.join(log_dir, entry['new_name']), os.path.join(log_dir, entry['original_name'])
+                    curr, orig = os.path.join(log_dir, entry['new_name']), os.path.join(log_dir, entry['orig_name'])
                     if entry.get('action') == 'converted':
-                        print(f"[CONVERTED] {entry['original_name']} -> {entry['new_name']}: Cannot be restored")
+                        print(f"[CONVERTED] {entry['orig_name']} -> {entry['new_name']}: Cannot be restored")
                     elif os.path.exists(curr):
                         os.rename(curr, orig)
-                        print(f"[RESTORED]  {entry['new_name']} -> {entry['original_name']}")
+                        print(f"[RESTORED]  {entry['new_name']} -> {entry['orig_name']}")
     for log_path in logs: os.remove(log_path)
     if os.path.exists(summary_path): os.remove(summary_path)
     print()
@@ -506,10 +562,37 @@ def get_gpsurl(gps_str, l_val):
             style = 2
     return gps_url, style
 
+def get_av_duration(file):
+    cmd = [
+        "ffprobe", "-v", "error", 
+        "-show_entries", "format=duration", 
+        "-of", "default=noprint_wrappers=1:nokey=1", 
+        "-sexagesimal", file
+    ]
+    extracted = ''
+
+    try:
+        # Get output (e.g., "0:00:57.190000")
+        output = subprocess.check_output(cmd).decode('utf-8').strip()
+
+        # Extraction logic:
+        # 1. Split at '.' to remove microseconds ("0:00:57")
+        # 2. Split by ':' and take the last two segments
+        time_parts = output.split('.')[0].split(':')
+        mm = time_parts[-2].zfill(2) # Pad with zero if needed
+        ss = time_parts[-1].zfill(2)
+
+        extracted = f"{mm}:{ss}"
+
+    except subprocess.CalledProcessError as e:
+        msg('error', f"get_av_duration: ffprobe {file}: {e}")
+
+    return extracted
+
 def create_style_css(root):
-    css_name = CSS_FILE
+    css_name = CSS_FILE_MAIN
     css_path = f"{root}/{css_name}"
-    notice(f"Creating {css_name}")
+    msg('css', f"Creating {css_name}")
     with open(css_path, 'w') as f:
         f.write(f"""/* Style for the Year */
 .main {{ 
@@ -596,70 +679,137 @@ body {{
 }}
 \n""")
 
-def save_group_html(data):
+def create_gallery_css(root):
+    css_name = CSS_FILE_GALLERY
+    css_path = f"{root}/{css_name}"
+    msg('css', f"Creating {css_name}")
+    with open(css_path, 'w') as f:
+        f.write(f"""/* Style for the Gallery */
+.gallery-grid {{
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+    gap: 24px;
+    max-width: 1200px;
+    margin: 0 auto;
+}}
+.gallery-item {{
+    background: #ffffff;
+    border-radius: 8px;
+    overflow: hidden;
+    box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+    display: flex;
+    flex-direction: column;
+}}
+.media-container {{
+    width: 100%;
+    height: 220px;
+    position: relative;
+    background: #000;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}}
+.media-container img, 
+.media-container video {{
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}}
+/* Audio card specific styling to hold the artwork background */
+.audio-bg {{
+    background-size: cover;
+    background-position: center;
+    width: 100%;
+    height: 100%;
+    display: flex;
+    align-items: flex-end;
+    justify-content: center;
+}}
+audio {{
+    width: 90%;
+    margin-bottom: 15px;
+    opacity: 0.9;
+}}
+.content-box {{
+    padding: 15px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    flex-grow: 1;
+}}
+.content-box h3 {{
+    font-size: 1.1rem;
+    color: #333;
+}}
+.link-group {{
+    margin-top: auto;
+    display: flex;
+    gap: 15px;
+}}
+.link-group a {{
+    font-size: 0.9rem;
+    color: #0066cc;
+    text-decoration: none;
+    font-weight: bold;
+}}
+.link-group a:hover {{
+    text-decoration: underline;
+}}
+\n""")
+
+def save_group_html(this_data):
     action = "template"
     source = "filedata"
-    rdata = data[0]
-    filename = os.path.basename(rdata['ref_name']).lower()
+    rdata = this_data[0]
     root = rdata['root']
-    this_year = os.path.basename(root)
-    if re.fullmatch(r'\d{4}', this_year):
-        next_year = int(this_year) + 1
-        next_year = str(next_year)
-    else:
-        next_year = ''
-    title = str(rdata['description']).replace('_', ' ').title()
+    grouped_name = rdata['group_name']
+    msg(action, f"Saving grouped file {grouped_name}... ", flush=True)
+    grouped_path = f"{root}/{grouped_name}"
+    this_year = rdata['year']
+    last_year = this_year - 1
+    next_year = this_year + 1
+    title = rdata['title']
     loc = rdata['address']
-    tagged_base, target_ext = os.path.splitext(filename)[0], ".html"
-    new_path = get_template_filename(root, tagged_base, target_ext)
-    new_name = os.path.basename(new_path).lower()
     time_frame = f" <em>({rdata['first_year']}-{rdata['last_year']})</em>"
     if rdata['first_year'] == 0:
         time_frame = ''
     elif rdata['last_year'] == 0:
         time_frame = f" <em>({rdata['first_year']}-Present)</em>"
-    msg(action, f"Saving grouped file {new_name}... ", flush=True)
-    with open(new_path, 'w') as f:
+    with open(grouped_path, 'w') as f:
         f.write(f"""<!DOCTYPE html><html><head><meta name="robots" content="none">\n""")
-        f.write(f"""<link rel="stylesheet" type="text/css" href="{CSS_FILE}">\n""")
+        f.write(f"""<link rel="stylesheet" type="text/css" href="{CSS_FILE_MAIN}">\n""")
         f.write(f"""<meta charset="UTF-8">\n""")
         f.write(f"""<meta name="viewport" content="width=device-width, initial-scale=1.0">\n""")
         f.write(f"<title>{title}</title></head><body>\n")
-        f.write(f"<h1>Year {filename[:4]}</h1>\n")
-        if rdata['gps_url'] == "N/A" or loc == "Missing":
+        f.write(f"<h1>Year {this_year}</h1>\n")
+        if rdata['map_url'] == "N/A" or loc == "Missing":
             f.write(f"""<h2>{loc}</h2>\n""")
         else:
-            f.write(f"""<h2><a href="{rdata['gps_url']}" target="_blank" rel="noopener noreferrer" style="text-decoration: none;">{loc}</a>{time_frame}</h2>\n""")
+            f.write(f"""<h2><a href="{rdata['map_url']}" target="_blank" rel="noopener noreferrer" style="text-decoration: none;">{loc}</a>{time_frame}</h2>\n""")
         f.write(f"<h3>Description: {title}</h3>\n")
-        f.write(f"""<h4>[ <a href="{SUMMARY_FILE}" class="plain">Summary</a> | <a href="{INDEX_FILE}" class="plain">Gallery</a> | <a href="../{INDEX_FILE}" class="plain">Top</a> | <a href="../{next_year}/{INDEX_FILE}" class="plain">Next Year</a> ]</h4>\n\n""")
-        f.write(f"""<p>\n<!-- Group description -->\n</p>\n\n<table class="main">\n""")
-        for file_data in data:
-            if file_data['gps_url_style'] == 1:
+        f.write(f"""<h4>[ <a href="{SUMMARY_FILE}" class="plain">Summary</a> | <a href="{INDEX_FILE}" class="plain">Gallery</a> | <a href="../{INDEX_FILE}" class="plain">Top</a> | <a href="../{last_year}" class="plain">{last_year}</a> | {this_year} | <a href="../{next_year}" class="plain">{next_year}</a> ]</h4>\n\n""")
+        f.write(f"""<p>\n<!-- group_description -->\n</p>\n\n<table class="main">\n""")
+        for entry in this_data:
+            if not os.path.exists(entry['new_name']): continue
+            media_type = entry['mime_type'][0]
+            if entry['map_style'] == 1:
                 style_str = "This "
-            elif file_data['gps_url_style'] == 2:
+            elif entry['map_style'] == 2:
                 style_str = "Media "
             else:
                 style_str = ''
-            if file_data['type'] == "video":
-                duration = get_av_duration(file_data)
-                filetype = f"""<a href="{file_data['ref_name']}" target="_blank">{file_data['type'].title()}{duration}</a>"""
-            elif file_data['type'] == "audio":
-                duration = get_av_duration(file_data)
-                filetype = f"""<a href="{file_data['ref_name']}" target="_blank">{file_data['type'].title()}{duration}</a>"""
+            if media_type == "video" or media_type == "audio":
+                duration = f" ({entry['duration']})"
+                filetype = f"""<a href="{entry['new_name']}" target="_blank">{media_type.title()}{duration}</a>"""
             else:
                 filetype = ''
-            map_str = '' if file_data['gps_url'] == "N/A" else f"""<a href="{file_data['gps_url']}" target="_blank">{style_str}Map</a>"""
-            image_str = f"""<a href="{file_data['ref_name']}"><img src="{file_data['ref_name']}"></a>""" if file_data['type'] == "image" else 'N/A'
-#            f.write(f"""<tr><td><a href="{file_data['ref_name']}" target="_blank">{file_data['ref_name']}</a></td><td>{filetype}</td><td>{map_str}</td><td>{image_str}</td>\n<td>\n<!-- image description -->\n</td></tr>\n""")
-            if file_data['type'] == "image":
-                media_str = f"""<a href="{file_data['ref_name']}"><img src="{file_data['ref_name']}" alt="{file_data['ref_name']}" title="{file_data['ref_name']}"></a>"""
+            map_str = '' if entry['map_url'] == "N/A" else f"""<a href="{entry['map_url']}" target="_blank">{style_str}Map</a>"""
+            image_str = f"""<a href="{entry['new_name']}"><img src="{entry['new_name']}"></a>""" if media_type == "image" else 'N/A'
+            if media_type == "image":
+                media_str = f"""<a href="{entry['new_name']}"><img src="{entry['new_name']}" alt="{entry['new_name']}" title="{entry['new_name']}"></a>"""
             else:
-                tagged_base, target_ext = os.path.splitext(file_data['ref_name'])[0], ".jpg"
-                matching_file = f"{tagged_base}{target_ext}"
-                if os.path.exists(matching_file):
-                    media_str = f"""<a href="{matching_file}"><img src="{matching_file}" alt="{matching_file}" title="{matching_file}"></a>"""
-                else:
-                    media_str = f"""<a href="{file_data['ref_name']}">{file_data['ref_name']}</a>"""
+                media_str = f"""<a href="{entry['cover_name']}"><img src="{entry['cover_name']}" alt="{entry['cover_name']}" title="{entry['cover_name']}"></a>"""
+#                    media_str = f"""<a href="{entry['new_name']}">{entry['new_name']}</a>"""
             if filetype and map_str:
                 descriptor_str = f"\n    {filetype}<br>\n    {map_str}\n"
             elif filetype:
@@ -668,106 +818,27 @@ def save_group_html(data):
                 descriptor_str = f"\n    {map_str}\n"
             else:
                 descriptor_str = '\n'
-            f.write(f"""<tr>\n  <td>{media_str}</td>\n  <td>{descriptor_str}  </td><td>\n<!-- image description -->\n  </td>\n</tr>\n""")
+            f.write(f"""<tr>\n  <td>{media_str}</td>\n  <td>{descriptor_str}  </td><td>\n<!-- media_description -->\n  </td>\n</tr>\n""")
         f.write(f"</table>\n\n</body></html>\n")
     msg('', "Done")
 
-def get_av_duration(file_data):
-    file = f"{file_data['root']}/{file_data['ref_name']}"
-    cmd = [
-        "ffprobe", "-v", "error", 
-        "-show_entries", "format=duration", 
-        "-of", "default=noprint_wrappers=1:nokey=1", 
-        "-sexagesimal", file
-    ]
-    extracted = ''
-
-    try:
-        # Get output (e.g., "0:00:57.190000")
-        output = subprocess.check_output(cmd).decode('utf-8').strip()
-
-        # Extraction logic:
-        # 1. Split at '.' to remove microseconds ("0:00:57")
-        # 2. Split by ':' and take the last two segments
-        time_parts = output.split('.')[0].split(':')
-        mm = time_parts[-2].zfill(2) # Pad with zero if needed
-        ss = time_parts[-1].zfill(2)
-
-        extracted = f" ({mm}:{ss})"
-
-    except subprocess.CalledProcessError as e:
-        msg('error', f"Processing {file}: {e}")
-
-    return extracted
-
-
-def create_templates(target, recurse):
-    notice("Creating Description Templates")
+def create_group_templates(target, recurse):
+    notice("Creating Group Template Files")
     dir_groups = get_dir_groups(target, recurse)
     for root, files in dir_groups.items():
         msg('dir', root)
         create_style_css(root)
+        mdata = get_media_data(root)
 
-        # Initial group
-        for key_path in sorted(files):
-            filename = os.path.basename(key_path).lower()
-            match = FILENAME_PATTERN.match(filename)
-            if match: 
-                break
-            else:
-                continue
-              
-        d_val = match.group(4) if match else "N/A"
-        current_group = []
-        current_key = d_val
-        # Create the template for each unique_files
-        for old_path in sorted(files):
-            filename = os.path.basename(old_path).lower()
-            match = FILENAME_PATTERN.match(filename.lower())
-            if not match: continue
-            s_val = match.group(2) if match else "N/A"
-            l_val = match.group(3) if match else "N/A"
-            d_val = match.group(4) if match else "N/A"
-            key = d_val
-            msg('grouping', f"{current_key} group -> {filename}")
-            gps_str = get_gpsinfo(old_path)
-            gps_url, gps_url_style = get_gpsurl(gps_str, l_val)
-#            print(f"s_val='{s_val}', l_val='{l_val}', d_val='{d_val}', gps_str='{gps_str}', gps_url='{gps_url}'")
-            if l_val in LOCATION_TAG:
-                address = LOCATION_TAG[l_val]['addr']
-            elif s_val == None and l_val == None and d_val == None:
-                address = "Missing"
-            elif s_val != None and l_val != None:
-                address = f"{l_val.replace('_', ' ').title()}, {s_val.upper()}"
-            else:
-                address = "Unknown"
+        grouped_data = {}
+        for item in mdata:
+            group_name = item["description"]
+            if group_name not in grouped_data:
+                grouped_data[group_name] = []
+            grouped_data[group_name].append(item)
 
-            file_data = {
-                "root": root,
-                "ref_name": filename, 
-                "type": get_mime_list(old_path)[0],
-                "state": s_val,
-                "location": l_val, 
-                "description": d_val,
-                "gps": gps_str,
-                "gps_url_style": gps_url_style,
-                "gps_url": gps_url,
-                "address": address,
-                "first_year": LOCATION_TAG[l_val]['begin'] if l_val in LOCATION_TAG else 0,
-                "last_year": LOCATION_TAG[l_val]['end'] if l_val in LOCATION_TAG else 0,
-            }
-            
-            # If the key changes, save the current group and start a new one
-            if key != current_key:
-                save_group_html(current_group)
-                current_group = [file_data]
-                current_key = key
-            else:
-                current_group.append(file_data)
-        
-        # Save the final group
-        save_group_html(current_group)
-
+        for item in grouped_data.keys():
+            save_group_html(grouped_data[item])
     print()
 
 def create_index(target, recurse, verbose):
@@ -778,83 +849,87 @@ def create_index(target, recurse, verbose):
     dir_groups = get_dir_groups(target, recurse)
     for root, files in dir_groups.items():
         msg('dir', root)
-        create_style_css(root)
-        gallery_files = []
-        this_year = os.path.basename(root)
-        if re.fullmatch(r'\d{4}', this_year):
-            next_year = int(this_year) + 1
-            next_year = str(next_year)
-        else:
-            next_year = ''
+        create_gallery_css(root)
+        mdata = get_media_data(root)
 
-        # Initial group
-        for key_path in sorted(files):
-            filename = os.path.basename(key_path).lower()
-            hmatch = FILENAME_HTML_PATTERN.match(filename)
-            imatch = FILENAME_IMAGE_PATTERN.match(filename)
-            if hmatch: 
-                match = hmatch
-                break
-            elif imatch:
-                match = imatch
-                break
-            else:
-                continue
-              
-        d_val = match.group(4) if match else "N/A"
-        current_key = d_val
-        tagged_base, target_ext = os.path.splitext(filename)[0], ".html"
-        template_file = f"{tagged_base}{target_ext}"
-        for old_path in sorted(files):
-            filename = os.path.basename(old_path).lower()
-            hmatch = FILENAME_HTML_PATTERN.match(filename)
-            imatch = FILENAME_IMAGE_PATTERN.match(filename)
-            if hmatch: 
-                match = hmatch
-            elif imatch:
-                match = imatch
-            else:
-                continue
-            d_val = match.group(4) if match else "N/A"
-            key = d_val
-
-            file_data = {
-                "root": root,
-                "ref_name": filename, 
-                "template": template_file,
-                "key": d_val,
-            }
-            
-            # If the key changes, save the current group and start a new one
-            if key != current_key:
-                tagged_base, target_ext = os.path.splitext(filename)[0], ".html"
-                template_file = f"{tagged_base}{target_ext}"
-                file_data['template'] = template_file
-                current_key = key
-
-            gallery_files.append(file_data)
-
+        year = mdata[0].get('year')
+        last_year = year - 1
+        next_year = year + 1
+        title = f"Media Gallery {year}"
         with open(index_path, 'w') as f:
             f.write(f"""<!DOCTYPE html>
 <html lang="en">
 <head>
-    <link rel="stylesheet" type="text/css" href="{CSS_FILE}">
+    <link rel="stylesheet" type="text/css" href="{CSS_FILE_GALLERY}">
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Photo Gallery</title>
+    <title>{title}</title>
 </head>
 <body>
-    <h2 style="text-align:center;">My Photo Gallery</h2>
-    <h4 style="text-align:center;">[ <a href="{SUMMARY_FILE}" class="plain">Summary</a> | Gallery | <a href="../{INDEX_FILE}" class="plain">Top</a> | <a href="../{next_year}/{INDEX_FILE}" class="plain">Next Year</a> ]</h4>
-    <div class="gallery">
+    <h2 style="text-align:center;">{title}</h2>
+    <h4 style="text-align:center;">[ <a href="{SUMMARY_FILE}" class="plain">Summary</a> | Gallery | <a href="../{INDEX_FILE}" class="plain">Top</a> | <a href="../{last_year}" class="plain">{last_year}</a> | {year} | <a href="../{next_year}" class="plain">{next_year}</a> ]</h4>
+    <div class="gallery-grid">
 """)
-            for image in gallery_files:
-                filename = image['ref_name']
-                match = FILENAME_HTML_PATTERN.match(filename)
-                if not match:
-                    template = image['template']
-                    f.write(f"""        <div class="gallery-item"><a href="{template}"><img src="{filename}" alt="{filename}" title="{template}"></a></div>\n""")
-
+            for entry in mdata:
+                media_type = entry['mime_type'][0]
+                if not os.path.exists(entry['new_name']): continue
+                if media_type == "image":
+                    f.write(f"""        <!-- Image Item -->
+        <div class="gallery-item">
+            <div class="media-container">
+                <a href="{entry['new_name']}" target="_blank" style="width:100%; height:100%;">
+                    <img src="{entry['new_name']}" alt="{entry['new_name']}" title="{entry['title']}">
+                </a>
+            </div>
+            <div class="content-box">
+                <div class="link-group">
+                    <a href="{entry['group_name']}">Details</a>
+                    <a href="{entry['new_name']}" target="_blank">Photo</a>
+                    {entry['title']}
+                </div>
+            </div>
+        </div>
+""")
+                elif media_type == "video":
+                    f.write(f"""        <!-- Video Item -->
+        <div class="gallery-item">
+            <div class="media-container">
+                <video controls poster="{entry['cover_name']}" preload="none">
+                    <source src="{entry['new_name']}" type="video/mp4">
+                    Your browser does not support the video tag.
+                </video>
+            </div>
+            <div class="content-box">
+                <div class="link-group">
+                    <a href="{entry['group_name']}">Details</a>
+                    <a href="{entry['cover_name']}" target="_blank">Photo</a>
+                    <a href="{entry['new_name']}" target="_blank">Video</a>
+                    {entry['title']}
+                </div>
+            </div>
+        </div>
+""")
+                elif media_type == "audio":
+                    f.write(f"""        <!-- Audio Item -->
+        <div class="gallery-item">
+            <div class="media-container">
+                <!-- Using song1.jpg as a visual overlay wrapper for the audio player -->
+                <div class="audio-bg" style="background-image: url('{entry['cover_name']}');">
+                    <audio controls>
+                        <source src="{entry['new_name']}" type="audio/mpeg">
+                        Your browser does not support the audio element.
+                    </audio>
+                </div>
+            </div>
+            <div class="content-box">
+                <div class="link-group">
+                    <a href="{entry['group_name']}">Details</a>
+                    <a href="{entry['cover_name']}" target="_blank">Photo</a>
+                    {entry['title']}
+                </div>
+            </div>
+        </div>
+""")
             f.write(f"""    </div>
 </body>
 </html>
@@ -892,12 +967,6 @@ def filename_to_modification_dt(target, recurse, verbose):
         html_files = []
         action = "updated"
         source = "filename"
-        this_year = os.path.basename(root)
-        if re.fullmatch(r'\d{4}', this_year):
-            next_year = int(this_year) + 1
-            next_year = str(next_year)
-        else:
-            next_year = ''
         updated_datetime = {'meta': 0, 'fs': 0}
         for this_path in sorted(files):
             file_eval += 1
@@ -922,7 +991,7 @@ def filename_to_modification_dt(target, recurse, verbose):
                 except Exception as e: print(f"Error: {e} => ", end='', flush=True)
 
                 change_log.append({
-                    "original_name": filename, 
+                    "orig_name": filename, 
                     "original_path": os.path.abspath(this_path),
                     "new_name": new_name, 
                     "state": s_val, 
@@ -954,7 +1023,7 @@ def filename_to_modification_dt(target, recurse, verbose):
                 sf.write(f'<tr><td>Summary For:</td><td>{root}</td></tr>\n')
                 sf.write(f"<tr><td>Media Files:</td><td>Images: {count['image']}, Videos: {count['video']}, Audio: {count['audio']}, HTML: {count['html']}, TOTAL: {count['total']}</td></tr>\n")
                 sf.write(f'<tr><td>Organized By:</td><td>Media Organizer, v{SVER}</td></tr>\n')
-                sf.write(f'<tr><td>Navigation:</td><td>[ Summary | <a href="{INDEX_FILE}" class="plain">Gallery</a> | <a href="../{INDEX_FILE}" class="plain">Top</a> | <a href="../{next_year}/{INDEX_FILE}" class="plain">Next Year</a> ]</td></tr>\n')
+                sf.write(f'<tr><td>Navigation:</td><td>[ Summary | <a href="{INDEX_FILE}" class="plain">Gallery</a> | <a href="../{INDEX_FILE}" class="plain">Top</a> ]</td></tr>\n')
                 sf.write(f"</table><br><table>\n")
                 sf.write(f"""
 <tr><td>Filename Format</td><td><strong>YYYYMMDD-HHMMSS[-State][-Location][-Description](_#).ext</strong></td></tr>
@@ -1028,14 +1097,22 @@ def process_media(target_input, recurse, adjacent, state_arg, location_arg, desc
 
     for root, files in dir_groups.items():
         msg('dir', f"{root}")
+        mdata = get_media_data(root)
+        mdata_dict = {item['new_name']: item for item in mdata} # dictionary with new_name keys for faster lookups and modification, converted back to list before writing to fs
+#        good = validate_media_data(mdata)
+
         change_log, last_date, last_source = [], None, None
         updated_datetime = {'meta': 0, 'fs': 0}
         for old_path in sorted(files):
             file_eval += 1
-            filename = os.path.basename(old_path)
-            ext = os.path.splitext(filename)[-1].lower()
+            filename = os.path.basename(old_path).lower()
+            ext = os.path.splitext(filename)[-1]
             match = FILENAME_PATTERN.match(filename.lower())
             prev = log_metadata.get(filename, {})
+            if filename in mdata_dict:
+                d = mdata_dict[filename]
+            else:
+                d = create_default_entry()
                         
             s_val = state_arg if state_arg is not None else prev.get("state", (match.group(2) if match else ""))
             l_val = location_arg if location_arg is not None else prev.get("location", (match.group(3) if match else ""))
@@ -1068,7 +1145,7 @@ def process_media(target_input, recurse, adjacent, state_arg, location_arg, desc
                     else:
                         dt, source = last_date, "adjacent"
             except Exception as e:
-                msg('error', f"DT {filename}: {e}")
+                msg('error', f"process_media: DT {filename}: {e}")
                 continue
 
             if (ext in ('.jpeg')):
@@ -1107,25 +1184,49 @@ def process_media(target_input, recurse, adjacent, state_arg, location_arg, desc
                     updated_datetime = set_datetime(new_path, dt)
 
                 gps_str = get_gpsinfo(new_path)
-                change_log.append({
-                    "original_name": filename, 
-                    "original_path": os.path.abspath(old_path),
-                    "new_name": new_name, 
-                    "state": s_val, 
-                    "location": l_val, 
-                    "description": d_val,
-                    "gps": gps_str,
-                    "mime_type": get_mime_list(new_path),
-                    "updated_datetime": updated_datetime,
-                    "date_used": dt.isoformat(), 
-                    "date_source": source, 
-                    "action": action, 
-                    "status": "success"
-                })
+                map_url, map_style = get_gpsurl(gps_str, l_val)
+    #            print(f"s_val='{s_val}', l_val='{l_val}', d_val='{d_val}', gps_str='{gps_str}', gps_url='{gps_url}'")
+                if l_val in LOCATION_TAG:
+                    address = LOCATION_TAG[l_val]['addr']
+                elif s_val == None and l_val == None and d_val == None:
+                    address = "Missing"
+                elif s_val != None and l_val != None:
+                    address = f"{l_val.replace('_', ' ').title()}, {s_val.upper()}"
+                else:
+                    address = "Unknown"
+
+                d['root'] = root
+                d['new_name'] = new_name
+                d['prev_name'] = filename
+                if not d['orig_name']: d['orig_name'] = filename
+                d['group_name'] = f"group-{d_val}.html"
+                d['state'] = s_val
+                d['location'] = l_val
+                d['description'] = d_val
+                d['title'] = d_val.replace('_', ' ').title()
+                if l_val in LOCATION_TAG:
+                    d['first_year'] = LOCATION_TAG[l_val]['begin']
+                    d['last_year'] = LOCATION_TAG[l_val]['end']
+                d['gps'] = gps_str
+                d['map_url'] = map_url
+                d['map_style'] = map_style
+                d['address'] = address
+                d['year'] = get_year(new_name)
+                d['mime_type'] = get_mime_list(new_path)
+                d['updated_datetime'] = updated_datetime
+                d['date_used'] = dt.isoformat()
+                d['date_source'] = source
+                if ext in ext_videos or ext in ext_sounds:
+                    d['cover_name'] = f"{tagged_base}.jpg"
+                    d['duration'] = get_av_duration(new_name)
+                d['rev'] += 1
+                d['action'] = action
+                d['status'] = 'success'
+                change_log.append(d)
                 action_str = "[" + action.upper() + "]"
                 msg(action, f"{filename} -> {new_name}")
                 last_date, last_source = dt, source
-            except Exception as e: msg('error', f"{filename}: {e}")
+            except Exception as e: msg('error', f"process_media: rename {filename}: {e}")
 
             if convert:
                 updated_datetime = {'meta': 0, 'fs': 0}
@@ -1154,7 +1255,6 @@ def process_media(target_input, recurse, adjacent, state_arg, location_arg, desc
                         elif ext in ext_videos_convert:
                             hb = HandBrake()
                             preset = hb.get_preset("CLI Default")
-#                            preset.preset_list[0]["PresetName"] = "videos"
                             try:
                                 hb.convert_title(
                                     old_path, 
@@ -1168,21 +1268,19 @@ def process_media(target_input, recurse, adjacent, state_arg, location_arg, desc
                         # Make the converted file have the same time as the source file
                         updated_datetime = set_datetime(new_path, dt)
 
-                        change_log.append({
-                            "original_name": filename, 
-                            "original_path": os.path.abspath(old_path),
-                            "new_name": new_name, 
-                            "state": s_val, 
-                            "location": l_val, 
-                            "description": d_val,
-                            "gps": gps_str,
-                            "mime_type": get_mime_list(new_path),
-                            "updated_datetime": updated_datetime,
-                            "date_used": dt.isoformat(), 
-                            "date_source": source, 
-                            "action": action, 
-                            "status": "success"
-                        })
+                        c = d
+                        c['root'] = root
+                        c['orig_name'] = filename
+                        c['new_name'] = new_name
+                        c['prev_name'] = filename
+                        c['mime_type'] = get_mime_list(new_path)
+                        c['updated_datetime'] = updated_datetime
+                        c['date_used'] = dt.isoformat()
+                        c['date_source'] = source
+                        c['action'] = action
+                        c['rev'] += 1
+                        c['status'] = 'success'
+                        change_log.append(c)
                         msg('', f"{new_name}")
                         file_eval += 1
                         file_cnt += 1
@@ -1198,6 +1296,8 @@ def process_media(target_input, recurse, adjacent, state_arg, location_arg, desc
 
         if change_log:
             with open(os.path.join(root, f"process_log_{log_time}.json"), 'w') as f:
+                json.dump(change_log, f, indent=4)
+            with open(os.path.join(root, f"{MEDIA_DATA_FILE}"), 'w') as f:
                 json.dump(change_log, f, indent=4)
             print()
 
@@ -1235,6 +1335,7 @@ if __name__ == "__main__":
     parser.add_argument("-g", "--log", action="store_true", help="Display latest JSON log summary")
     parser.add_argument("-G", "--all-logs", action="store_true", help="Display latest JSON log summary in all subdirs")
     parser.add_argument("-i", "--index", action="store_true", help="Creates an index.html for the directory gallery of images")
+    parser.add_argument("-z", "--finalize", action="store_true", help="Extracts final descriptions and edits to store them in the log")
     parser.add_argument("-v", "--verbose", action="store_true", help="Enables verbose output")
     parser.add_argument("-s", "--state", help="State tag, Unsupported characters [-._]")
     parser.add_argument("-l", "--location", help="Location tag, Unsupported characters [-.]")
@@ -1258,15 +1359,16 @@ if __name__ == "__main__":
 
     if args.log: display_logs(target_input, args.verbose, all_subdirs=False)
     elif args.all_logs: display_logs(target_input, args.verbose, all_subdirs=True)
-    elif args.template: create_templates(target_input, args.recurse)
+    elif args.template: create_group_templates(target_input, args.recurse)
     elif args.reverse: reverse_last_session(target_input, args.recurse)
     elif args.original: restore_original_names(target_input, args.recurse)
     elif args.modified: filename_to_modification_dt(target_input, args.recurse, args.verbose)
     elif args.index: create_index(target_input, args.recurse, args.verbose)
     elif args.build:
-        create_templates(target_input, args.recurse)
+        create_group_templates(target_input, args.recurse)
         create_index(target_input, args.recurse, args.verbose)
         filename_to_modification_dt(target_input, args.recurse, args.verbose)
+    elif args.finalize: print("Pending")
     else: process_media(target_input, args.recurse, args.adjacent, args.state, args.location, args.description, args.yyyymmdd, args.hhmmss, args.time_sequenced, args.force, args.convert, args.convert_remove, args.verbose)
     
 

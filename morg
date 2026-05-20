@@ -62,6 +62,7 @@ from datetime import datetime, timedelta
 from PIL import Image
 from PIL.ExifTags import TAGS
 from handbrake import HandBrake
+from pydub import AudioSegment
 
 # url 1: https://www.google.com/maps/place/street+city+state+zip/@lat,lon,200m
 # url 2: https://www.google.com/maps/search/?api=1&query=lat,lon
@@ -106,8 +107,10 @@ LOCATION_TAG = {
 ext_image_str = "jpg|jpeg|png|bmp|tif|tiff|heic|webp|pgm|ppm|pmb|pnm|jfif|jp2|j2k|jxl|xcf"
 ext_image_convert_str = "heic|tiff|tif"
 ext_video_str = "mp4|mov|mpg|avi|mkv|m4v|wmv|webm|3gp"
-ext_video_convert_str = "mov"
+#ext_video_convert_str = "mov"
+ext_video_convert_str = "mov|avi|mkv|m4v|wmv|webm|3gp"
 ext_sound_str = "mp3|wav|snd|m4a|aac|aiff|flac|ogg|amr|mp2"
+ext_sound_convert_str = "snd|m4a|aac|aiff|flac|amr|mp2"
 ext_html_str = "html|htm"
 ext_all_str = "|".join([ext_image_str, ext_video_str, ext_sound_str])
 ext_images = tuple([f".{ext}" for ext in ext_image_str.split('|')])
@@ -115,6 +118,7 @@ ext_images_convert = tuple([f".{ext}" for ext in ext_image_convert_str.split('|'
 ext_videos = tuple([f".{ext}" for ext in ext_video_str.split('|')])
 ext_videos_convert = tuple([f".{ext}" for ext in ext_video_convert_str.split('|')])
 ext_sounds = tuple([f".{ext}" for ext in ext_sound_str.split('|')])
+ext_sounds_convert = tuple([f".{ext}" for ext in ext_sound_convert_str.split('|')])
 ext_all = tuple([f".{ext}" for ext in ext_all_str.split('|')])
 
 URL_BASE = "https://www.google.com/maps"
@@ -234,6 +238,22 @@ def get_media_data(path):
     else:
         data = []
     return data
+
+def cleanup_media_data(mdata_dict):
+    msg('clean', 'Cleaning up the media data')
+    this_dict = copy.deepcopy(mdata_dict)
+    for key in mdata_dict.keys():
+        filepath = os.path.join(mdata_dict[key]['root'], mdata_dict[key]['new_name'])
+        if not os.path.exists(filepath):
+            del this_dict[key]
+            msg('delete', f"- Deleted key {key}, file not found")
+    for key in mdata_dict.keys():
+        cover = mdata_dict[key]['cover_name']
+        if cover:
+            e = this_dict.pop(cover, None)
+            if e:
+                msg('delete', f"- Deleted cover duplicate {cover}")
+    return this_dict
 
 def get_mime_list(filepath):
     mime_type, _ = mimetypes.guess_type(filepath)
@@ -372,9 +392,6 @@ def override_dt(dt_old, given_date, given_time):
     dt_new = datetime.strptime(dt_new_str, "%Y%m%d-%H%M%S")
     return dt_new, "override"
 
-def converted_from(old_path, root, tagged_base, target_ext):
-    return new_path, new_name
-
 def date_digits(value):
     num = 8
     """Validator to ensure string is {num} digits."""
@@ -414,15 +431,6 @@ def get_dir_groups(target, recurse):
             dir_groups[d].append(f_path)
 
     return dir_groups
-
-def get_template_filename(root, tagged_base, target_ext):
-    new_name = f"{tagged_base}{target_ext}"
-    old_path = os.path.join(root, new_name)
-    new_path = old_path
-    if os.path.exists(new_path):
-        new_name = f"{tagged_base}{target_ext}.tmp"
-        new_path = os.path.join(root, new_name)
-    return new_path
 
 def get_all_logs(target, recurse):
     logs = []
@@ -502,28 +510,6 @@ def reverse_last_session(target_path, recurse):
                     print(f"[REVERSED]  {e['new_name']} -> {e['orig_name']}")
         print()
 
-def restore_original_names_old(target_path, recurse):
-    notice("Restoring Media Files to the Original Names, Except Converted Files")
-    # once files are converted, they are not converted back
-    logs = get_all_logs(target_path, recurse)
-    summary_path = os.path.join(target_path['root'], SUMMARY_FILE)
-    if not logs: return
-    logs.reverse()
-    for log_path in logs:
-        log_dir = os.path.dirname(log_path)
-        with open(log_path, 'r') as f:
-            for entry in json.load(f):
-                if entry.get('status') == 'success':
-                    curr, orig = os.path.join(log_dir, entry['new_name']), os.path.join(log_dir, entry['orig_name'])
-                    if entry.get('action') == 'converted':
-                        print(f"[CONVERTED] {entry['orig_name']} -> {entry['new_name']}: Cannot be restored")
-                    elif os.path.exists(curr):
-                        os.rename(curr, orig)
-                        print(f"[RESTORED]  {entry['new_name']} -> {entry['orig_name']}")
-    for log_path in logs: os.remove(log_path)
-    if os.path.exists(summary_path): os.remove(summary_path)
-    print()
-
 def restore_original_names(target_path, recurse):
     notice("Restoring Media Files to the Original Names, Except Converted Files")
     recurse = False # unsupported right now
@@ -535,7 +521,8 @@ def restore_original_names(target_path, recurse):
     for entry in mdata:
         if entry.get('status') == 'success':
             curr, orig = entry.get('new_name'), entry.get('orig_name')
-            if entry.get('action') == 'converted':
+            been_converted = any(event[0] == "converted" for event in entry["rev"])
+            if been_converted:
                 msg('converted', f"{orig} -> {curr}: Cannot be restored")
             elif os.path.exists(curr):
                 os.rename(curr, orig)
@@ -834,17 +821,17 @@ def save_group_html(this_data):
                 style_str = ''
             if media_type == "video" or media_type == "audio":
                 duration = f" ({entry['duration']})"
-                filetype = f"""\n    <a href="{entry['new_name']}" target="_blank">{media_type.title()}{duration}</a>"""
-                cover_str = f"""\n    <a href="{entry['cover_name']}" target="_blank">Photo</a>"""
+                filetype = f"""\n    <a href="{entry['new_name']}" target="{entry['new_name']}">{media_type.title()}{duration}</a>"""
+                cover_str = f"""\n    <a href="{entry['cover_name']}" target="{entry['cover_name']}">Photo</a>""" if entry['cover_name'] else ""
             else:
                 filetype = ''
                 cover_str = ''
             map_str = '' if entry['map_url'] == "N/A" else f"""\n    <a href="{entry['map_url']}" target="_blank">{style_str}Map</a>"""
-            image_str = f"""<a href="{entry['new_name']}"><img src="{entry['new_name']}"></a>""" if media_type == "image" else 'N/A'
+            image_str = f"""<a href="{entry['new_name']}" target="{entry['new_name']}"><img src="{entry['new_name']}"></a>""" if media_type == "image" else 'N/A'
             if media_type == "image":
-                media_str = f"""<a href="{entry['new_name']}"><img src="{entry['new_name']}" alt="{entry['new_name']}" title="{entry['new_name']}"></a>"""
+                media_str = f"""<a href="{entry['new_name']}" target="{entry['new_name']}"><img src="{entry['new_name']}" alt="{entry['new_name']}" title="{entry['new_name']}"></a>"""
             else:
-                media_str = f"""<a href="{entry['new_name']}"><img src="{entry['cover_name']}" alt="{entry['new_name']}" title="{entry['new_name']}"></a>"""
+                media_str = f"""<a href="{entry['new_name']}" target="{entry['new_name']}"><img src="{entry['cover_name']}" alt="{entry['new_name']}" title="{entry['new_name']}"></a>"""
             if filetype and map_str and cover_str:
                 descriptor_str = f"{filetype}<br>{map_str}<br>{cover_str}\n"
             elif filetype:
@@ -907,59 +894,62 @@ def create_index(target, recurse, verbose):
 """)
             for entry in mdata:
                 media_type = entry['mime_type'][0]
+                mime_type = '/'.join(entry['mime_type'])
                 if not os.path.exists(entry['new_name']): continue
                 if media_type == "image":
                     f.write(f"""        <!-- Image Item -->
         <div class="gallery-item">
             <div class="media-container">
-                <a href="{entry['new_name']}" target="_blank" style="width:100%; height:100%;">
+                <a href="{entry['new_name']}" target="{entry['new_name']}" style="width:100%; height:100%;">
                     <img src="{entry['new_name']}" alt="{entry['new_name']}">
                 </a>
             </div>
             <div class="content-box">
                 <div class="link-group">
                     <a href="{entry['group_name']}">Details</a>
-                    <a href="{entry['new_name']}" target="_blank">Photo</a>
+                    <a href="{entry['new_name']}" target="{entry['new_name']}">Photo</a>
 <!-- gallery_description -->{entry['gallery_description']}
                 </div>
             </div>
         </div>
 """)
                 elif media_type == "video":
+                    photo_link = f"""
+                    <a href="{entry['cover_name']}" target="{entry['cover_name']}">Photo</a>""" if entry['cover_name'] else ""
                     f.write(f"""        <!-- Video Item -->
         <div class="gallery-item">
             <div class="media-container">
                 <video controls poster="{entry['cover_name']}" preload="none">
-                    <source src="{entry['new_name']}" type="video/mp4">
+                    <source src="{entry['new_name']}" type="{mime_type}">
                     Your browser does not support the video tag.
                 </video>
             </div>
             <div class="content-box">
                 <div class="link-group">
-                    <a href="{entry['group_name']}">Details</a>
-                    <a href="{entry['cover_name']}" target="_blank">Photo</a>
-                    <a href="{entry['new_name']}" target="_blank">Video</a>
+                    <a href="{entry['group_name']}">Details</a>{photo_link}
+                    <a href="{entry['new_name']}" target="{entry['new_name']}">Video</a>
 <!-- gallery_description -->{entry['gallery_description']}
                 </div>
             </div>
         </div>
 """)
                 elif media_type == "audio":
+                    photo_link = f"""
+                    <a href="{entry['cover_name']}" target="{entry['cover_name']}">Photo</a>""" if entry['cover_name'] else ""
                     f.write(f"""        <!-- Audio Item -->
         <div class="gallery-item">
             <div class="media-container">
                 <!-- Using song1.jpg as a visual overlay wrapper for the audio player -->
                 <div class="audio-bg" style="background-image: url('{entry['cover_name']}');">
                     <audio controls>
-                        <source src="{entry['new_name']}" type="audio/mpeg">
+                        <source src="{entry['new_name']}" type="{mime_type}">
                         Your browser does not support the audio element.
                     </audio>
                 </div>
             </div>
             <div class="content-box">
                 <div class="link-group">
-                    <a href="{entry['group_name']}">Details</a>
-                    <a href="{entry['cover_name']}" target="_blank">Photo</a>
+                    <a href="{entry['group_name']}">Details</a>{photo_link}
 <!-- gallery_description -->{entry['gallery_description']}
                 </div>
             </div>
@@ -971,7 +961,7 @@ def create_index(target, recurse, verbose):
 """)
     print()
 
-def filename_to_modification_dt(target, recurse, verbose):
+def filename_to_modification_dt(target, action, recurse, verbose):
     ### use target instead of os.walk(".")
     notice("Modifing Media Files")
     file_cnt = 0
@@ -996,7 +986,6 @@ def filename_to_modification_dt(target, recurse, verbose):
     for root, files in dir_groups.items():
         msg('dir', root)
         html_files = {}
-        action = "updated"
         source = "filename"
         updated_datetime = {'meta': 0, 'fs': 0}
         mdata = get_media_data(root)
@@ -1100,21 +1089,6 @@ to know more about a picture or video, open the .html file with same description
         print()
 
     msg('summary', f"Processed {file_cnt} matching files out of {file_eval} found\n")
-
-def cleanup_media_data(mdata_dict):
-    msg('clean', 'Cleaning up the media data')
-    this_dict = copy.deepcopy(mdata_dict)
-    for key in mdata_dict.keys():
-        filepath = os.path.join(mdata_dict[key]['root'], mdata_dict[key]['new_name'])
-        if not os.path.exists(filepath):
-            del this_dict[key]
-            msg('delete', f"- Deleted key {key}, file not found")
-    for key in mdata_dict.keys():
-        cover = mdata_dict[key]['cover_name']
-        if cover:
-            e = this_dict.pop(cover, None)
-            msg('delete', f"- Deleted cover duplicate {cover}")
-    return this_dict
 
 def process_media(target_input, recurse, adjacent, state_arg, location_arg, description_arg, given_date, given_time, time_sequenced, forced, convert, convert_remove, verbose):
     notice("Organizing Media Files")
@@ -1243,10 +1217,10 @@ def process_media(target_input, recurse, adjacent, state_arg, location_arg, desc
                 if renamed: d['prev_name'] = filename
                 if not d['orig_name']: d['orig_name'] = filename
                 d['group_name'] = f"group-{d_val}.html"
-                d['state'] = s_val
-                d['location'] = l_val
-                d['description'] = d_val
-                d['title'] = d_val.replace('_', ' ').title()
+                d['state'] = "" if s_val == None else s_val
+                d['location'] = "" if l_val == None else l_val
+                d['description'] = "" if d_val == None else d_val
+                d['title'] = "" if d_val == None else d_val.replace('_', ' ').title()
                 d['group_description'] = d['group_name']
                 d['media_description'] = new_name
                 d['gallery_description'] = d['title']
@@ -1263,8 +1237,9 @@ def process_media(target_input, recurse, adjacent, state_arg, location_arg, desc
                 d['date_used'] = dt.isoformat()
                 d['date_source'] = source
                 if ext in ext_videos or ext in ext_sounds:
-                    d['cover_name'] = f"{tagged_base}.jpg"
+                    cover_file = os.path.join(root, f"{tagged_base}.jpg")
                     d['duration'] = get_av_duration(new_name)
+                    d['cover_name'] = f"{tagged_base}.jpg" if os.path.exists(cover_file) else ""
                 d['rev'].append([action, log_time])
                 d['status'] = 'success'
 
@@ -1276,15 +1251,19 @@ def process_media(target_input, recurse, adjacent, state_arg, location_arg, desc
 
             if convert:
                 updated_datetime = {'meta': 0, 'fs': 0}
-                if ext in ext_images_convert or ext in ext_videos_convert: 
+                if ext in ext_images_convert or ext in ext_videos_convert or ext in ext_sounds_convert: 
                     try:
                         action = "converted"
+                        c = copy.deepcopy(d)
+                        c['status'] = "success"
                         old_path = new_path
                         filename = os.path.basename(new_path)
                         if ext in ext_images_convert:
                             target_ext = '.jpg'
                         elif ext in ext_videos_convert: 
                             target_ext = '.mp4'
+                        elif ext in ext_sounds_convert: 
+                            target_ext = '.mp3'
 
                         new_name = f"{tagged_base}{target_ext}"
                         new_path = os.path.join(root, new_name)
@@ -1308,16 +1287,25 @@ def process_media(target_input, recurse, adjacent, state_arg, location_arg, desc
                                     "1"
                                 )
                             except Exception as e:
-                                msg('error', f"handbrake: {e}")
+                                msg('error', f"process_media {action} HandBrake: {e}")
+                                c['status'] = "failed"
                                 pass
+                        elif ext in ext_sounds_convert:
+                            try:
+                                audio = AudioSegment.from_file(old_path)
+                                audio.export(new_path, format="mp3")
+                            except Exception as e:
+                                msg('error', f"process_media{action} AudioSegment: {e}")
+                                c['status'] = "failed"
+                                pass
+
                         msg('', f"{new_name}")
 
                         # Make the converted file have the same time as the source file
                         updated_datetime = set_datetime(new_path, dt)
 
-                        c = copy.deepcopy(d)
                         c['root'] = root
-                        c['orig_name'] = filename
+                        c['orig_name'] = new_name
                         c['new_name'] = new_name
                         c['prev_name'] = new_name
                         c['mime_type'] = get_mime_list(new_path)
@@ -1326,22 +1314,19 @@ def process_media(target_input, recurse, adjacent, state_arg, location_arg, desc
                         c['date_used'] = dt.isoformat()
                         c['date_source'] = source
                         c['rev'].append([action, log_time])
-                        c['status'] = 'find'
                         mdata_dict[new_name] = c
                         file_eval += 1
                         file_cnt += 1
 
                         gps_id = "gps-" if d['gps'] == "N/A" else "gps+"
                         msg('updated', f"{updated_datetime['meta']} {updated_datetime['fs']} {gps_id}: {new_name}")
-                        if convert_remove: 
-                            if ext in ext_videos_convert: 
-                                msg('skipped', "        : {filename}, Video conversion experimental, delete manually.")
-                            else:
-                                msg('deleted', f"        : {filename}")
-                                del mdata_dict[filename]
-                                os.remove(old_path)
+                        if convert_remove and c['status'] == "success": 
+                            msg('deleted', f"        : {filename}")
+                            del mdata_dict[filename]
+                            os.remove(old_path)
 
-                    except Exception as e: print(f"Error {filename}: {e}")
+                    except Exception as e:
+                        msg('error', f"process_media {filename}: {e}")
 
         mdata_dict = cleanup_media_data(mdata_dict)
         mdata_list = list(mdata_dict.values())
@@ -1503,10 +1488,10 @@ if __name__ == "__main__":
     elif args.template: create_group_templates(target_input, args.recurse)
     elif args.reverse: reverse_last_session(target_input, args.recurse)
     elif args.original: restore_original_names(target_input, args.recurse)
-    elif args.modified: filename_to_modification_dt(target_input, args.recurse, args.verbose)
+    elif args.modified: filename_to_modification_dt(target_input, 'updated', args.recurse, args.verbose)
     elif args.index: create_index(target_input, args.recurse, args.verbose)
     elif args.build:
-        filename_to_modification_dt(target_input, args.recurse, args.verbose)
+        filename_to_modification_dt(target_input, 'built', args.recurse, args.verbose)
         create_group_templates(target_input, args.recurse)
         create_index(target_input, args.recurse, args.verbose)
     elif args.finalize: finalize_descriptions(target_input, args.recurse)

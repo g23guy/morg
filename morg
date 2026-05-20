@@ -432,7 +432,7 @@ def get_dir_groups(target, recurse):
 
     return dir_groups
 
-def print_media_table(path, verbose):
+def print_media_table(log_path, verbose):
     """Prints a log file with dynamic column widths for full filenames."""
     try:
         with open(log_path, 'r') as f:
@@ -1328,6 +1328,10 @@ def finalize_descriptions(target, recurse):
         r"<!--\s*media_description\s*-->\s*(.*?)\s*</td>", re.DOTALL
     )
 
+    title_regex = re.compile(
+        r"<title>(.*?)</title>"
+    )
+
     dir_groups = get_dir_groups(target, recurse)
     for root, files in dir_groups.items():
         msg('dir', root)
@@ -1365,16 +1369,21 @@ def finalize_descriptions(target, recurse):
         html_files = glob.glob("group-*.html")
 
         for file_path in html_files:
-            msg('group', f"Extracting group and media descriptions from {file_path}")
+            msg('group', f"Extracting title and group descriptions from {file_path}")
             with open(file_path, "r", encoding="utf-8") as f:
                 content = f.read()
 
-            # 1. Extract group_description
+            # 1. Extract title
+            title_match = title_regex.search(content)
+            title_description = title_match.group(1).strip() if title_match else ""
+
+            # 2. Extract group_description
             group_match = group_desc_regex.search(content)
             group_description = group_match.group(1).strip() if group_match else ""
 
-            msg('debug', f">  file_path={file_path}, group_description={group_description}")
-            # 2. Extract table rows for media keys and descriptions
+#            msg('debug', f">  file_path={file_path}, group_description={group_description}, title={title_description}")
+            msg('group', f"Extracting media descriptions from {file_path}")
+            # 3. Extract table rows for media keys and descriptions
             for row in row_regex.finditer(content):
                 row_text = row.group(0)
 
@@ -1386,9 +1395,10 @@ def finalize_descriptions(target, recurse):
                 # Extract the media description text following the comment
                 media_match = media_desc_regex.search(row_text)
                 media_description = media_match.group(1).strip() if media_match else ""
-                msg('debug', f">  key={key}, media_description={media_description}")
+#                msg('debug', f">  key={key}, media_description={media_description}")
 
                 # 3. Save both extracted values into the dictionary
+                mdata_dict[key]["title"] = title_description
                 mdata_dict[key]["group_description"] = group_description
                 mdata_dict[key]["media_description"] = media_description
 

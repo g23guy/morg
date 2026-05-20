@@ -105,9 +105,9 @@ LOCATION_TAG = {
 
 # Supported extensions
 ext_image_str = "jpg|jpeg|png|bmp|tif|tiff|heic|webp|pgm|ppm|pmb|pnm|jfif|jp2|j2k|jxl|xcf"
-ext_image_convert_str = "heic|tiff|tif"
+#ext_image_convert_str = "heic|tiff|tif"
+ext_image_convert_str = "heic|tiff|tif|png|bmp|pgm|ppm|pmb|pnm|jfif|jp2|j2k|xcf"
 ext_video_str = "mp4|mov|mpg|avi|mkv|m4v|wmv|webm|3gp"
-#ext_video_convert_str = "mov"
 ext_video_convert_str = "mov|avi|mkv|m4v|wmv|webm|3gp"
 ext_sound_str = "mp3|wav|snd|m4a|aac|aiff|flac|ogg|amr|mp2"
 ext_sound_convert_str = "snd|m4a|aac|aiff|flac|amr|mp2"
@@ -336,7 +336,7 @@ def get_datetime(filepath):
         except Exception: pass
 
     # Date Priority 3: Filesystem Modification Date/Time
-    return datetime.fromtimestamp(os.path.getmtime(filepath)), "modified"
+    return datetime.fromtimestamp(os.path.getmtime(filepath)), "modification"
 
 def set_datetime(file_path, dt):
     updated_datetime = {'meta': 0, 'fs': 0}
@@ -432,21 +432,7 @@ def get_dir_groups(target, recurse):
 
     return dir_groups
 
-def get_all_logs(target, recurse):
-    logs = []
-    base_dir = target['root']
-    if recurse:
-        for root, _, files in os.walk(base_dir):
-            for f in files:
-                if f.startswith("process_log_") and f.endswith(".json"):
-                    logs.append(os.path.join(root, f))
-    else:
-        if os.path.exists(base_dir):
-            logs = [os.path.join(base_dir, f) for f in os.listdir(base_dir) 
-                    if f.startswith("process_log_") and f.endswith(".json")]
-    return sorted(logs)
-
-def print_log_table(log_path, verbose):
+def print_media_table(path, verbose):
     """Prints a log file with dynamic column widths for full filenames."""
     try:
         with open(log_path, 'r') as f:
@@ -479,26 +465,10 @@ def print_log_table(log_path, verbose):
     except Exception as e:
         print(f"Error reading log {log_path}: {e}")
 
-def display_logs(target_path, verbose, all_subdirs):
-    notice("Displaying Log File(s)")
-    logs = get_all_logs(target_path, recurse=all_subdirs)
-    if not logs:
-        print(f"No logs found.\n")
-        return
-    
-    if all_subdirs:
-        # Get latest log from each unique directory
-        latest_per_dir = {}
-        for l in logs: latest_per_dir[os.path.dirname(l)] = l
-        for lp in latest_per_dir.values(): print_log_table(lp, verbose)
-    else:
-        print_log_table(logs[-1], verbose)
-    print()
-
 def reverse_last_session(target_path, recurse):
     notice("Restoring Media Files from Last Session, Except Converted Files")
     # once files are converted, they are not converted back
-    logs = get_all_logs(target_path, recurse)
+    logs = []
     if logs:
         with open(logs[-1], 'r') as f:
             for e in json.load(f):
@@ -528,11 +498,9 @@ def restore_original_names(target_path, recurse):
                 os.rename(curr, orig)
                 msg('restored', f"{curr} -> {orig}")
 
-    logs = get_all_logs(target_path, recurse)
     summary_path = os.path.join(root, SUMMARY_FILE)
     mdata_path = os.path.join(root, MEDIA_DATA_FILE)
 
-    for log_path in logs: os.remove(log_path)
     if os.path.exists(summary_path): os.remove(summary_path)
     if os.path.exists(mdata_path): os.remove(mdata_path)
     extensions = ['*.html', '*.css']
@@ -1103,14 +1071,6 @@ def process_media(target_input, recurse, adjacent, state_arg, location_arg, desc
     if given_date or given_time or time_sequenced: overridden = True
 
     dir_groups = get_dir_groups(target_input, recurse)
-    all_logs = get_all_logs(target_input, recurse)
-    log_metadata = {}
-    for log in all_logs:
-        try:
-            with open(log, 'r') as f:
-                for e in json.load(f): log_metadata[e['new_name']] = e
-        except Exception: continue
-
     for root, files in dir_groups.items():
         msg('dir', f"{root}")
         mdata = get_media_data(root)
@@ -1123,15 +1083,14 @@ def process_media(target_input, recurse, adjacent, state_arg, location_arg, desc
             filename = os.path.basename(old_path).lower()
             ext = os.path.splitext(filename)[-1]
             match = FILENAME_PATTERN.match(filename.lower())
-            prev = log_metadata.get(filename, {})
             if filename in mdata_dict:
                 d = mdata_dict[filename]
             else:
                 d = create_default_entry()
                         
-            s_val = state_arg if state_arg is not None else prev.get("state", (match.group(2) if match else ""))
-            l_val = location_arg if location_arg is not None else prev.get("location", (match.group(3) if match else ""))
-            d_val = description_arg if description_arg is not None else prev.get("description", (match.group(4) if match else ""))
+            s_val = state_arg if state_arg else d['state']
+            l_val = location_arg if location_arg  else d['location']
+            d_val = description_arg if description_arg  else d['description']
             dt = ''
 
             if forced:
@@ -1219,13 +1178,11 @@ def process_media(target_input, recurse, adjacent, state_arg, location_arg, desc
                 d['new_name'] = new_name
                 if renamed: d['prev_name'] = filename
                 if not d['orig_name']: d['orig_name'] = filename
-                d['group_name'] = f"group-{d_val}.html"
-                d['state'] = "" if s_val == None else s_val
-                d['location'] = "" if l_val == None else l_val
-                d['description'] = "" if d_val == None else d_val
-                d['title'] = "" if d_val == None else d_val.replace('_', ' ').title()
-                d['group_description'] = d['group_name']
-                d['media_description'] = new_name
+                d['group_name'] = f"group-{d_val}.html" if d_val else ""
+                d['state'] = s_val if s_val else ""
+                d['location'] = l_val if l_val else ""
+                d['description'] = d_val if d_val else ""
+                d['title'] = d_val.replace('_', ' ').title() if d_val else ""
                 d['gallery_description'] = d['title']
                 if l_val in LOCATION_TAG:
                     d['first_year'] = LOCATION_TAG[l_val]['begin']
@@ -1247,7 +1204,7 @@ def process_media(target_input, recurse, adjacent, state_arg, location_arg, desc
 
                 gps_id = "gps-" if gps_str == "N/A" else "gps+"
                 mdata_dict[new_name] = d
-                msg(action, f"{d['updated_datetime']['meta']} {d['updated_datetime']['fs']} {gps_id}: {filename} -> {new_name}")
+                msg(action, f"{d['updated_datetime']['meta']} {d['updated_datetime']['fs']} {gps_id}: {filename} -> {new_name} ({source})")
                 last_date, last_source = dt, source
             except Exception as e: msg('error', f"process_media: {action} {filename}: {e}")
 
@@ -1277,8 +1234,14 @@ def process_media(target_input, recurse, adjacent, state_arg, location_arg, desc
 
                         msg(action, f"        : {filename} -> ", flush=True)
                         if ext in ext_images_convert:
-                            with Image.open(old_path) as img:
-                                img.convert("RGB").save(new_path, "JPEG", quality=95)
+                            try:
+                                with Image.open(old_path) as img:
+                                    img.convert("RGB").save(new_path, "JPEG", quality=95)
+                            except Exception as e:
+                                print()
+                                msg('error', f"process_media,{action},Image.convert: {e}")
+                                c['status'] = "failed"
+                                pass
                         elif ext in ext_videos_convert:
                             hb = HandBrake()
                             preset = hb.get_preset("CLI Default")
@@ -1289,7 +1252,8 @@ def process_media(target_input, recurse, adjacent, state_arg, location_arg, desc
                                     "1"
                                 )
                             except Exception as e:
-                                msg('error', f"process_media {action} HandBrake: {e}")
+                                print()
+                                msg('error', f"process_media,{action},HandBrake: {e}")
                                 c['status'] = "failed"
                                 pass
                         elif ext in ext_sounds_convert:
@@ -1297,7 +1261,8 @@ def process_media(target_input, recurse, adjacent, state_arg, location_arg, desc
                                 audio = AudioSegment.from_file(old_path)
                                 audio.export(new_path, format="mp3")
                             except Exception as e:
-                                msg('error', f"process_media{action} AudioSegment: {e}")
+                                print()
+                                msg('error', f"process_media,{action},AudioSegment: {e}")
                                 c['status'] = "failed"
                                 pass
 
@@ -1311,7 +1276,6 @@ def process_media(target_input, recurse, adjacent, state_arg, location_arg, desc
                         c['new_name'] = new_name
                         c['prev_name'] = new_name
                         c['mime_type'] = get_mime_list(new_path)
-                        c['media_description'] = new_name
                         c['updated_datetime'] = updated_datetime
                         c['date_used'] = dt.isoformat()
                         c['date_source'] = source
@@ -1321,7 +1285,7 @@ def process_media(target_input, recurse, adjacent, state_arg, location_arg, desc
                         file_cnt += 1
 
                         gps_id = "gps-" if d['gps'] == "N/A" else "gps+"
-                        msg('updated', f"{updated_datetime['meta']} {updated_datetime['fs']} {gps_id}: {new_name}")
+                        msg('updated', f"{updated_datetime['meta']} {updated_datetime['fs']} {gps_id}: {new_name} (existing)")
                         if convert_remove and c['status'] == "success": 
                             msg('deleted', f"        : {filename}")
                             del mdata_dict[filename]

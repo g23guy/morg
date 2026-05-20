@@ -1012,6 +1012,9 @@ def filename_to_modification_dt(target, action, recurse, verbose):
                     mdata_dict[key]['date_source'] = source
                     mdata_dict[key]['rev'].append([action, log_time])
                     gps_id = "gps-" if mdata_dict[key]['gps'] == "N/A" else "gps+"
+                    cover_file = os.path.join(root, mdata_dict[key]['cover_name'])
+                    if not os.path.exists(cover_file):
+                        mdata_dict[key]['cover_name'] == ""
                     msg(action, f"{updated_datetime['meta']} {updated_datetime['fs']} {gps_id}: {filename}")
                 except Exception as e: msg('error', f"filename_to_modification_dt, updated_datetime: {e}")
 
@@ -1237,9 +1240,8 @@ def process_media(target_input, recurse, adjacent, state_arg, location_arg, desc
                 d['date_used'] = dt.isoformat()
                 d['date_source'] = source
                 if ext in ext_videos or ext in ext_sounds:
-                    cover_file = os.path.join(root, f"{tagged_base}.jpg")
                     d['duration'] = get_av_duration(new_name)
-                    d['cover_name'] = f"{tagged_base}.jpg" if os.path.exists(cover_file) else ""
+                    d['cover_name'] = f"{tagged_base}.jpg"
                 d['rev'].append([action, log_time])
                 d['status'] = 'success'
 

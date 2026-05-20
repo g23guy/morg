@@ -119,8 +119,8 @@ ext_all = tuple([f".{ext}" for ext in ext_all_str.split('|')])
 
 URL_BASE = "https://www.google.com/maps"
 SUMMARY_FILE = '0-README.html'
-CSS_FILE_MAIN = "style.css"
-CSS_FILE_GALLERY = "gallery.css"
+CSS_FILE_MAIN = "style-main.css"
+CSS_FILE_GALLERY = "style-gallery.css"
 INDEX_FILE = "index.html"
 MEDIA_DATA_FILE = "mediadata.json"
 log_time = datetime.now().strftime('%Y%m%d_%H%M%S')
@@ -159,13 +159,6 @@ FILENAME_VIDEO_PATTERN = re.compile(r"^(\d{8}-\d{6})(?:-([^-_\.]+))?(?:-([^-\.]+
 # group(3): [-Location]
 # group(4): [-Description]
 FILENAME_AUDIO_PATTERN = re.compile(r"^(\d{8}-\d{6})(?:-([^-_\.]+))?(?:-([^-\.]+))?(?:-([^-\.]+))?(?:_(\d+))?\.(" + ext_sound_str + ")$")
-
-# Regex: YYYYMMDD-HHMMSS[-State][-Location][-Description](_#).ext HTML
-# group(1): YYYYMMDD-HHMMSS
-# group(2): [-State]
-# group(3): [-Location]
-# group(4): [-Description]
-FILENAME_HTML_PATTERN = re.compile(r"^(\d{8}-\d{6})(?:-([^-_\.]+))?(?:-([^-\.]+))?(?:-([^-\.]+))?(?:_(\d+))?\.(" + ext_html_str + ")$")
 
 # Filename style: Android
 # Regex: YYYYMMDD_HHMMSS.ext
@@ -227,9 +220,7 @@ def create_default_entry():
         },
         "date_used": '', # the date used for renaming files
         "date_source": '', # where the date_used came from
-        "action": '', # what last happend
-        "invalid": '', # invalid key above if found
-        "rev": 0, # update revision
+        "rev": [], # update revision [action, log_time] what happened and when YYYMMDD_HHMMSS with a list of lists
         "status": '', # unused for now
     }
 
@@ -798,6 +789,7 @@ def save_group_html(this_data):
     rdata = this_data[0]
     root = rdata['root']
     grouped_name = rdata['group_name']
+    group_description = rdata['group_description']
     msg(action, f"Saving grouped file {grouped_name}... ", flush=True)
     grouped_path = f"{root}/{grouped_name}"
     this_year = rdata['year']
@@ -823,7 +815,7 @@ def save_group_html(this_data):
             f.write(f"""<h2><a href="{rdata['map_url']}" target="_blank" rel="noopener noreferrer" style="text-decoration: none;">{loc}</a>{time_frame}</h2>\n""")
         f.write(f"<h3>Description: {title}</h3>\n")
         f.write(f"""<h4>[ <a href="{SUMMARY_FILE}" class="plain">Summary</a> | <a href="{INDEX_FILE}" class="plain">Gallery</a> | <a href="../{INDEX_FILE}" class="plain">Top</a> | <a href="../{last_year}" class="plain">{last_year}</a> | {this_year} | <a href="../{next_year}" class="plain">{next_year}</a> ]</h4>\n\n""")
-        f.write(f"""<p>\n<!-- group_description -->\n</p>\n\n<table class="main">\n""")
+        f.write(f"""<p>\n<!-- group_description -->{group_description}\n</p>\n\n<table class="main">\n""")
         for entry in this_data:
             if not os.path.exists(entry['new_name']): continue
             media_type = entry['mime_type'][0]
@@ -842,25 +834,26 @@ def save_group_html(this_data):
                 style_str = ''
             if media_type == "video" or media_type == "audio":
                 duration = f" ({entry['duration']})"
-                filetype = f"""<a href="{entry['new_name']}" target="_blank">{media_type.title()}{duration}</a>"""
+                filetype = f"""\n    <a href="{entry['new_name']}" target="_blank">{media_type.title()}{duration}</a>"""
+                cover_str = f"""\n    <a href="{entry['cover_name']}" target="_blank">Photo</a>"""
             else:
                 filetype = ''
-            map_str = '' if entry['map_url'] == "N/A" else f"""<a href="{entry['map_url']}" target="_blank">{style_str}Map</a>"""
+                cover_str = ''
+            map_str = '' if entry['map_url'] == "N/A" else f"""\n    <a href="{entry['map_url']}" target="_blank">{style_str}Map</a>"""
             image_str = f"""<a href="{entry['new_name']}"><img src="{entry['new_name']}"></a>""" if media_type == "image" else 'N/A'
             if media_type == "image":
                 media_str = f"""<a href="{entry['new_name']}"><img src="{entry['new_name']}" alt="{entry['new_name']}" title="{entry['new_name']}"></a>"""
             else:
-                media_str = f"""<a href="{entry['cover_name']}"><img src="{entry['cover_name']}" alt="{entry['cover_name']}" title="{entry['cover_name']}"></a>"""
-#                    media_str = f"""<a href="{entry['new_name']}">{entry['new_name']}</a>"""
-            if filetype and map_str:
-                descriptor_str = f"\n    {filetype}<br>\n    {map_str}\n"
+                media_str = f"""<a href="{entry['new_name']}"><img src="{entry['cover_name']}" alt="{entry['new_name']}" title="{entry['new_name']}"></a>"""
+            if filetype and map_str and cover_str:
+                descriptor_str = f"{filetype}<br>{map_str}<br>{cover_str}\n"
             elif filetype:
-                descriptor_str = f"\n    {filetype}\n"
+                descriptor_str = f"{filetype}<br>{cover_str}\n"
             elif map_str:
-                descriptor_str = f"\n    {map_str}\n"
+                descriptor_str = f"{map_str}\n"
             else:
                 descriptor_str = '\n'
-            f.write(f"""<tr>\n  <td>{media_str}</td>\n  <td>{descriptor_str}  </td><td>\n<!-- media_description -->\n  </td>\n</tr>\n""")
+            f.write(f"""<tr>\n  <td>{media_str}</td>\n  <td>{descriptor_str}  </td><td>\n<!-- media_description -->{entry['media_description']}\n  </td>\n</tr>\n""")
         f.write(f"</table>\n\n</body></html>\n")
     msg('', "Done")
 
@@ -984,15 +977,12 @@ def filename_to_modification_dt(target, recurse, verbose):
     file_cnt = 0
     file_eval = 0
     msg('counting', "Media Files")
-    count = {'image': 0, 'video': 0, 'audio': 0, 'html': 0, 'total': 0}
+    count = {'image': 0, 'video': 0, 'audio': 0, 'total': 0}
     for root, dirs, files in os.walk("."):
         for file in files:
             filename = file.lower()
             if FILENAME_IMAGE_PATTERN.match(filename):
                 count['image'] += 1
-                count['total'] += 1
-            elif FILENAME_HTML_PATTERN.match(filename):
-                count['html'] += 1
                 count['total'] += 1
             elif FILENAME_VIDEO_PATTERN.match(filename):
                 count['video'] += 1
@@ -1005,21 +995,21 @@ def filename_to_modification_dt(target, recurse, verbose):
 
     for root, files in dir_groups.items():
         msg('dir', root)
-        change_log = []
-        html_files = []
+        html_files = {}
         action = "updated"
         source = "filename"
         updated_datetime = {'meta': 0, 'fs': 0}
-        for this_path in sorted(files):
+        mdata = get_media_data(root)
+        mdata_dict = {item['new_name']: item for item in mdata}
+        change_log = []
+
+        for key in mdata_dict.keys():
             file_eval += 1
-            filename = os.path.basename(this_path)
-            new_name = filename
-            match = FILENAME_PATTERN.match(filename.lower())
+            filename = mdata_dict[key]['new_name']
+            filepath = os.path.join(root, filename)
+            match = FILENAME_PATTERN.match(filename)
 
-            s_val = match.group(2) if match else ""
-            l_val = match.group(3) if match else ""
-            d_val = match.group(4) if match else ""
-
+            html_files[mdata_dict[key]['group_name']] = None
             if filename.endswith('.html'):
                 if filename != SUMMARY_FILE:
                     html_files.append(filename)
@@ -1028,46 +1018,39 @@ def filename_to_modification_dt(target, recurse, verbose):
                 file_cnt += 1
                 try:
                     dt = datetime.strptime(match.group(1), "%Y%m%d-%H%M%S")
-                    updated_datetime = set_datetime(this_path, dt)
-                    msg(action, f"{updated_datetime['meta']} {updated_datetime['fs']}: {filename} -> ", flush=True)
-                except Exception as e: msg('error', f"filename_to_modification_dt, updated_datetime: {e} => ", end='', flush=True)
+                    updated_datetime = set_datetime(filepath, dt)
+                    mdata_dict[key]['updated_datetime'] = updated_datetime
+                    mdata_dict[key]['date_source'] = source
+                    mdata_dict[key]['rev'].append([action, log_time])
+                    gps_id = "gps-" if mdata_dict[key]['gps'] == "N/A" else "gps+"
+                    msg(action, f"{updated_datetime['meta']} {updated_datetime['fs']} {gps_id}: {filename}")
+                except Exception as e: msg('error', f"filename_to_modification_dt, updated_datetime: {e}")
 
-                change_log.append({
-                    "orig_name": filename, 
-                    "original_path": os.path.abspath(this_path),
-                    "new_name": new_name, 
-                    "state": s_val, 
-                    "location": l_val, 
-                    "description": d_val,
-                    "gps": get_gpsinfo(this_path),
-                    "mime_type": get_mime_list(this_path),
-                    "updated_datetime": updated_datetime,
-                    "date_used": dt.isoformat(), 
-                    "date_source": source, 
-                    "action": action, 
-                    "status": "success"
-                })
-                msg('', new_name)
+        mdata_dict = cleanup_media_data(mdata_dict)
+        mdata_list = list(mdata_dict.values())
+        mdata = sorted(mdata_list, key=lambda x: x["new_name"])
+        with open(os.path.join(root, f"{MEDIA_DATA_FILE}"), 'w') as f:
+            json.dump(mdata, f, indent=4)
 
-            dtnow = datetime.now().strftime('%B %d, %Y')
-            summary_path = os.path.join(root, SUMMARY_FILE)
-            with open(os.path.join(root, f"process_log_{log_time}.json"), 'w') as f:
-                json.dump(change_log, f, indent=4)
-            with open(summary_path, 'w') as sf:
-                sf.write(f'<!DOCTYPE html><html><head><meta name="robots" content="none">\n')
-                sf.write(f'<title>Summary</title>\n')
-                sf.write(f"""<link rel="stylesheet" type="text/css" href="style.css">\n""")
-                sf.write(f"""<meta charset="UTF-8">\n""")
-                sf.write(f"""<meta name="viewport" content="width=device-width, initial-scale=1.0">\n""")
-                sf.write(f'</head>\n')
-                sf.write(f'<body><h1 align="center">Summary</h1>\n')
-                sf.write(f'<center><table><tr><td>Summary Date:</td><td>{dtnow}</td></tr>\n')
-                sf.write(f'<tr><td>Summary For:</td><td>{root}</td></tr>\n')
-                sf.write(f"<tr><td>Media Files:</td><td>Images: {count['image']}, Videos: {count['video']}, Audio: {count['audio']}, HTML: {count['html']}, TOTAL: {count['total']}</td></tr>\n")
-                sf.write(f'<tr><td>Organized By:</td><td>Media Organizer, v{SVER}</td></tr>\n')
-                sf.write(f'<tr><td>Navigation:</td><td>[ Summary | <a href="{INDEX_FILE}" class="plain">Gallery</a> | <a href="../{INDEX_FILE}" class="plain">Top</a> ]</td></tr>\n')
-                sf.write(f"</table><br><table>\n")
-                sf.write(f"""
+        dtnow = datetime.now().strftime('%B %d, %Y')
+        summary_path = os.path.join(root, SUMMARY_FILE)
+
+        msg('summary', "Writing Summary File")
+        with open(summary_path, 'w') as sf:
+            sf.write(f'<!DOCTYPE html><html><head><meta name="robots" content="none">\n')
+            sf.write(f'<title>Summary</title>\n')
+            sf.write(f"""<link rel="stylesheet" type="text/css" href="style.css">\n""")
+            sf.write(f"""<meta charset="UTF-8">\n""")
+            sf.write(f"""<meta name="viewport" content="width=device-width, initial-scale=1.0">\n""")
+            sf.write(f'</head>\n')
+            sf.write(f'<body><h1 align="center">Summary</h1>\n')
+            sf.write(f'<center><table><tr><td>Summary Date:</td><td>{dtnow}</td></tr>\n')
+            sf.write(f'<tr><td>Summary For:</td><td>{root}</td></tr>\n')
+            sf.write(f"<tr><td>Media Files:</td><td>Images: {count['image']}, Videos: {count['video']}, Audio: {count['audio']}, TOTAL: {count['total']}</td></tr>\n")
+            sf.write(f'<tr><td>Organized By:</td><td>Media Organizer, v{SVER}</td></tr>\n')
+            sf.write(f'<tr><td>Navigation:</td><td>[ Summary | <a href="{INDEX_FILE}" class="plain">Gallery</a> | <a href="../{INDEX_FILE}" class="plain">Top</a> ]</td></tr>\n')
+            sf.write(f"</table><br><table>\n")
+            sf.write(f"""
 <tr><td>Filename Format</td><td><strong>YYYYMMDD-HHMMSS[-State][-Location][-Description](_#).ext</strong></td></tr>
 <td>YYYYMMDD-HHMMSS</td><td>Mandatory year, month, day, hour, minute, second the picture was taken</td></tr>
 <td>[-State]</td><td>Optional state tag</td></tr>
@@ -1075,9 +1058,9 @@ def filename_to_modification_dt(target, recurse, verbose):
 <td>[-Description]</td><td>Optional description tag. Used to create group description files.</td></tr>
 <td>(_#)</td><td>Optional collision number in case a file has the same date/time stamp</td></tr>
 <td>.ext</td><td>The media's extension</td></tr>
-                \n""")
-                sf.write(f"</table><br>\n")
-                sf.write(f"""
+            \n""")
+            sf.write(f"</table><br>\n")
+            sf.write(f"""
 <p>The purpose of the file format is to sort media chronologically, and to tag the files so you know basically where and what the file is about.</p>
 
 <p>For example, suppose you see the following files in File Explorer:<br><br>
@@ -1093,31 +1076,45 @@ all relate to the Record Family Reunion based on the description tag "record_fam
 description of the Record Family Reunion along with the names of people in the photos open the file:<br>
 <em>20000609-160000-ca-groveland-record_family_reunion.html</em>. The .html files group events together. So if you want<br>
 to know more about a picture or video, open the .html file with same description tag in the filename.</p>
-                \n""")
-                if html_files:
-                    sf.write(f"<hr><h4>HTML Group Description File List</h4>\n")
-                    sf.write(f"<p>Media files are grouped together using the description tag. These files contain a desciption of<br>the event and the names of people in the images. Not all grouped files will have a description file.</p>\n")
-                    sf.write(f'<table><tr><th>Filename</th></tr>\n')
-                    for e in html_files:
-                        link_to_html = f"""<tr><td><a href="{e}">{e}</a></td></tr>"""
-                        sf.write(f"{link_to_html}\n")
-                    sf.write(f'</table>\n')
-                    
-                if change_log:
-                    sf.write(f"<hr><h4>File Modification List</h4>\n")
-                    sf.write(f"<p>The filename's date/time is written to the metadata (Meta) as the original date/time the media was created and written to the filesystem's modification (FS) date/time. A Meta or FS of one indicates the date/time was successfully updated, whereas zero means it was not. The media's GPS data if found is displayed in the GPS column.</p>\n")
-                    sf.write(f'<table><tr><th>Filename</th><th>Action</th><th>Date</th><th>Source</th><th>Meta</th><th>FS</th><th>GPS</th><th>Type</th></tr>\n')
-                    for e in change_log:
-                        new_name_link = f"<a href='{e['new_name']}' target='_blank' rel='noopener'>{e['new_name']}</a>"
-                        gps_link = f"<a href='{URL_BASE}/search/?api=1&query={e['gps']}' target='_blank' rel='noopener'>{e['gps']}</a>" if e['gps'] != "N/A" else "N/A"
-                        formatted_line = f"<tr><td>{new_name_link}</td><td>{e['action'].upper()}</td><td>{e['date_used']}</td><td>{e['date_source']}</td><td>{e['updated_datetime']['meta']}</td><td>{e['updated_datetime']['fs']}</td><td>{gps_link}</td><td>{e['mime_type'][0]}</td></tr>\n"
-                        sf.write(formatted_line)
-                    sf.write(f'</table></center>\n')
-                sf.write(f'</body></html>\n')
+            \n""")
+            if html_files:
+                sf.write(f"<hr><h4>HTML Group Description File List</h4>\n")
+                sf.write(f"<p>Media files are grouped together using the description tag. These files contain a desciption of<br>the event and the names of people in the images. Not all grouped files will have a description file.</p>\n")
+                sf.write(f'<table><tr><th>Filename</th></tr>\n')
+                for e in html_files.keys():
+                    link_to_html = f"""<tr><td><a href="{e}">{e}</a></td></tr>"""
+                    sf.write(f"{link_to_html}\n")
+                sf.write(f'</table>\n')
+                
+            if change_log:
+                sf.write(f"<hr><h4>File Modification List</h4>\n")
+                sf.write(f"<p>The filename's date/time is written to the metadata (Meta) as the original date/time the media was created and written to the filesystem's modification (FS) date/time. A Meta or FS of one indicates the date/time was successfully updated, whereas zero means it was not. The media's GPS data if found is displayed in the GPS column.</p>\n")
+                sf.write(f'<table><tr><th>Filename</th><th>Action</th><th>Date</th><th>Source</th><th>Meta</th><th>FS</th><th>GPS</th><th>Type</th></tr>\n')
+                for e in change_log:
+                    new_name_link = f"<a href='{e['new_name']}' target='_blank' rel='noopener'>{e['new_name']}</a>"
+                    gps_link = f"<a href='{URL_BASE}/search/?api=1&query={e['gps']}' target='_blank' rel='noopener'>{e['gps']}</a>" if e['gps'] != "N/A" else "N/A"
+                    formatted_line = f"<tr><td>{new_name_link}</td><td>{e['action'].upper()}</td><td>{e['date_used']}</td><td>{e['date_source']}</td><td>{e['updated_datetime']['meta']}</td><td>{e['updated_datetime']['fs']}</td><td>{gps_link}</td><td>{e['mime_type'][0]}</td></tr>\n"
+                    sf.write(formatted_line)
+                sf.write(f'</table></center>\n')
+            sf.write(f'</body></html>\n')
         print()
 
-    if file_cnt > 0: display_logs(target_input, verbose, all_subdirs=False)
     msg('summary', f"Processed {file_cnt} matching files out of {file_eval} found\n")
+
+def cleanup_media_data(mdata_dict):
+    msg('clean', 'Cleaning up the media data')
+    this_dict = copy.deepcopy(mdata_dict)
+    for key in mdata_dict.keys():
+        filepath = os.path.join(mdata_dict[key]['root'], mdata_dict[key]['new_name'])
+        if not os.path.exists(filepath):
+            del this_dict[key]
+            msg('delete', f"- Deleted key {key}, file not found")
+    for key in mdata_dict.keys():
+        cover = mdata_dict[key]['cover_name']
+        if cover:
+            e = this_dict.pop(cover, None)
+            msg('delete', f"- Deleted cover duplicate {cover}")
+    return this_dict
 
 def process_media(target_input, recurse, adjacent, state_arg, location_arg, description_arg, given_date, given_time, time_sequenced, forced, convert, convert_remove, verbose):
     notice("Organizing Media Files")
@@ -1141,11 +1138,10 @@ def process_media(target_input, recurse, adjacent, state_arg, location_arg, desc
         msg('dir', f"{root}")
         mdata = get_media_data(root)
         mdata_dict = {item['new_name']: item for item in mdata} # dictionary with new_name keys for faster lookups and modification, converted back to list before writing to fs
-#        good = validate_media_data(mdata)
 
-        change_log, last_date, last_source = [], None, None
-        updated_datetime = {'meta': 0, 'fs': 0}
+        last_date, last_source = None, None
         for old_path in sorted(files):
+            updated_datetime = {'meta': 0, 'fs': 0}
             file_eval += 1
             filename = os.path.basename(old_path).lower()
             ext = os.path.splitext(filename)[-1]
@@ -1226,7 +1222,7 @@ def process_media(target_input, recurse, adjacent, state_arg, location_arg, desc
                     action = "renamed"
                     os.rename(old_path, new_path)
                 else:
-                    action = "review"
+                    action = "reviewed"
                 if overridden:
                     updated_datetime = set_datetime(new_path, dt)
 
@@ -1251,6 +1247,8 @@ def process_media(target_input, recurse, adjacent, state_arg, location_arg, desc
                 d['location'] = l_val
                 d['description'] = d_val
                 d['title'] = d_val.replace('_', ' ').title()
+                d['group_description'] = d['group_name']
+                d['media_description'] = new_name
                 d['gallery_description'] = d['title']
                 if l_val in LOCATION_TAG:
                     d['first_year'] = LOCATION_TAG[l_val]['begin']
@@ -1267,12 +1265,12 @@ def process_media(target_input, recurse, adjacent, state_arg, location_arg, desc
                 if ext in ext_videos or ext in ext_sounds:
                     d['cover_name'] = f"{tagged_base}.jpg"
                     d['duration'] = get_av_duration(new_name)
-                d['rev'] += 1
-                d['action'] = action
+                d['rev'].append([action, log_time])
                 d['status'] = 'success'
 
+                gps_id = "gps-" if gps_str == "N/A" else "gps+"
                 mdata_dict[new_name] = d
-                msg(action, f"{d['updated_datetime']['meta']} {d['updated_datetime']['fs']}: {filename} -> {new_name}")
+                msg(action, f"{d['updated_datetime']['meta']} {d['updated_datetime']['fs']} {gps_id}: {filename} -> {new_name}")
                 last_date, last_source = dt, source
             except Exception as e: msg('error', f"process_media: {action} {filename}: {e}")
 
@@ -1296,7 +1294,7 @@ def process_media(target_input, recurse, adjacent, state_arg, location_arg, desc
                             new_path = os.path.join(root, new_name)
                             counter += 1
 
-                        msg(action, f"{filename} -> ", flush=True)
+                        msg(action, f"        : {filename} -> ", flush=True)
                         if ext in ext_images_convert:
                             with Image.open(old_path) as img:
                                 img.convert("RGB").save(new_path, "JPEG", quality=95)
@@ -1312,6 +1310,7 @@ def process_media(target_input, recurse, adjacent, state_arg, location_arg, desc
                             except Exception as e:
                                 msg('error', f"handbrake: {e}")
                                 pass
+                        msg('', f"{new_name}")
 
                         # Make the converted file have the same time as the source file
                         updated_datetime = set_datetime(new_path, dt)
@@ -1320,40 +1319,131 @@ def process_media(target_input, recurse, adjacent, state_arg, location_arg, desc
                         c['root'] = root
                         c['orig_name'] = filename
                         c['new_name'] = new_name
-                        c['prev_name'] = filename
+                        c['prev_name'] = new_name
                         c['mime_type'] = get_mime_list(new_path)
+                        c['media_description'] = new_name
                         c['updated_datetime'] = updated_datetime
                         c['date_used'] = dt.isoformat()
                         c['date_source'] = source
-                        c['action'] = action
-                        c['rev'] += 1
+                        c['rev'].append([action, log_time])
                         c['status'] = 'find'
                         mdata_dict[new_name] = c
-                        msg('', f"{new_name}  {c['updated_datetime']['meta']} {c['updated_datetime']['fs']}")
                         file_eval += 1
                         file_cnt += 1
 
+                        gps_id = "gps-" if d['gps'] == "N/A" else "gps+"
+                        msg('updated', f"{updated_datetime['meta']} {updated_datetime['fs']} {gps_id}: {new_name}")
                         if convert_remove: 
                             if ext in ext_videos_convert: 
-                                msg('skipped', "{filename}, Video conversion experimental, delete manually.")
+                                msg('skipped', "        : {filename}, Video conversion experimental, delete manually.")
                             else:
-                                msg('deleted', f"{filename}")
+                                msg('deleted', f"        : {filename}")
+                                del mdata_dict[filename]
                                 os.remove(old_path)
 
                     except Exception as e: print(f"Error {filename}: {e}")
 
+        mdata_dict = cleanup_media_data(mdata_dict)
         mdata_list = list(mdata_dict.values())
         mdata = sorted(mdata_list, key=lambda x: x["new_name"])
         with open(os.path.join(root, f"{MEDIA_DATA_FILE}"), 'w') as f:
             json.dump(mdata, f, indent=4)
 
-        if change_log:
-            with open(os.path.join(root, f"process_log_{log_time}.json"), 'w') as f:
-                json.dump(change_log, f, indent=4)
-            print()
-
-    if file_cnt > 0 and not recurse: display_logs(target_input, verbose, all_subdirs=False)
     msg('summary', f"Processed {file_cnt} matching files out of {file_eval} found\n")
+
+def finalize_descriptions(target, recurse):
+    notice("Extracting Descriptions from HTML Files")
+    recurse = False # unsupported for now
+    # Regex pattern to match each item block from <!-- * Item --> up to the </div> enclosing its link-group
+    item_pattern = re.compile(
+        r"<!--\s*(Image|Video|Audio)\s*Item\s*-->.*?"
+        r"<!--\s*gallery_description\s*-->(.*?)(?=</div>)", 
+        re.DOTALL
+    )
+
+    # Individual regex patterns to find the specific keys inside each block type
+    img_key_pattern = re.compile(r'<img\s+[^>]*src=["\']([^"\']+)["\']')
+    source_key_pattern = re.compile(r'<source\s+[^>]*src=["\']([^"\']+)["\']')
+
+    # Regex to find the text directly following the group_description comment inside a <p> tag
+    group_desc_regex = re.compile(
+        r"<p>\s*<!--\s*group_description\s*-->\s*(.*?)\s*</p>", re.DOTALL
+    )
+
+    # Regex to find each table row and extract the href key and media description
+    row_regex = re.compile(r"<tr>\s*<td>.*?</td>.*?</tr>", re.DOTALL)
+    href_regex = re.compile(r'<td>\s*<a\s+[^>]*href="([^"]+)"', re.DOTALL)
+    media_desc_regex = re.compile(
+        r"<!--\s*media_description\s*-->\s*(.*?)\s*</td>", re.DOTALL
+    )
+
+    dir_groups = get_dir_groups(target, recurse)
+    for root, files in dir_groups.items():
+        msg('dir', root)
+        mdata = get_media_data(root)
+        mdata_dict = {item['new_name']: item for item in mdata}
+
+        # Extract <!-- gallery_description --> from index.html
+        msg('gallery', f"Extracting gallery descriptions from {INDEX_FILE}")
+        with open(INDEX_FILE, "r", encoding="utf-8") as f:
+            html_content = f.read()
+
+        # Find all blocks matching our criteria
+        for match in item_pattern.finditer(html_content):
+            item_type = match.group(1)
+            description = match.group(2).strip()
+            block_text = match.group(0)
+            
+            key = None
+            if item_type == "Image":
+                key_match = img_key_pattern.search(block_text)
+                if key_match:
+                    key = key_match.group(1)
+            elif item_type in ("Video", "Audio"):
+                key_match = source_key_pattern.search(block_text)
+                if key_match:
+                    key = key_match.group(1)
+                    
+            # Verify the key exists in your dictionary before writing data
+            if key and key in mdata_dict:
+                mdata_dict[key]['gallery_description'] = description
+
+        # Extract <!-- group_description --> and <!-- media_description --> from group-*.html
+        html_files = glob.glob("group-*.html")
+
+        for file_path in html_files:
+            msg('group', f"Extracting group and media descriptions from {file_path}")
+            with open(file_path, "r", encoding="utf-8") as f:
+                content = f.read()
+
+            # 1. Extract group_description
+            group_match = group_desc_regex.search(content)
+            group_description = group_match.group(1).strip() if group_match else ""
+
+            # 2. Extract table rows for media keys and descriptions
+            for row in row_regex.finditer(content):
+                row_text = row.group(0)
+
+                # Get the key from the first href
+                href_match = href_regex.search(row_text)
+                if not href_match: continue
+                key = href_match.group(1)
+
+                # Extract the media description text following the comment
+                media_match = media_desc_regex.search(row_text)
+                media_description = media_match.group(1).strip() if media_match else ""
+
+                # 3. Save both extracted values into the dictionary
+                mdata_dict[key] = {
+                    "group_description": group_description,
+                    "media_description": media_description,
+                }
+
+        mdata = list(mdata_dict.values())
+#        mdata = sorted(mdata_list, key=lambda x: x["new_name"])
+        with open(os.path.join(root, f"{MEDIA_DATA_FILE}"), 'w') as f:
+            json.dump(mdata, f, indent=4)
+        print()
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(
@@ -1416,10 +1506,10 @@ if __name__ == "__main__":
     elif args.modified: filename_to_modification_dt(target_input, args.recurse, args.verbose)
     elif args.index: create_index(target_input, args.recurse, args.verbose)
     elif args.build:
+        filename_to_modification_dt(target_input, args.recurse, args.verbose)
         create_group_templates(target_input, args.recurse)
         create_index(target_input, args.recurse, args.verbose)
-        filename_to_modification_dt(target_input, args.recurse, args.verbose)
-    elif args.finalize: print("Pending")
+    elif args.finalize: finalize_descriptions(target_input, args.recurse)
     else: process_media(target_input, args.recurse, args.adjacent, args.state, args.location, args.description, args.yyyymmdd, args.hhmmss, args.time_sequenced, args.force, args.convert, args.convert_remove, args.verbose)
     
 

@@ -738,6 +738,57 @@ audio {{
 }}
 \n""")
 
+def get_navigation_str(context, root):
+    last_dir = root.strip('/').split('/')[-1]
+    parent_dir = root.rstrip('/').rsplit('/', 1)[0]
+    this_year = get_year(last_dir)
+    nav_str = ''
+    nav_years = ''
+    nav_top = 'Top'
+
+    if os.path.exists(os.path.join(parent_dir, INDEX_FILE)):
+        nav_top = f"""<a href="../{INDEX_FILE}" class="plain">Top</a>"""
+    if this_year > 0:
+        last_year = this_year - 1
+        next_year = this_year + 1
+        last_year_path = os.path.join(parent_dir, str(last_year))
+        next_year_path = os.path.join(parent_dir, str(next_year))
+        if os.path.exists(last_year_path):
+            last_year_nav = f"""<a href="../{last_year}/{INDEX_FILE}" class="plain">{last_year}</a>"""
+        else:
+            last_year_nav = f"{last_year}"
+        if os.path.exists(next_year_path):
+            next_year_nav = f"""<a href="../{next_year}/{INDEX_FILE}" class="plain">{next_year}</a>"""
+        else:
+            next_year_nav = f"{next_year}"
+
+        nav_years = f""" | {last_year_nav} | {this_year} | {next_year_nav} """
+    else:
+        nav_years = ""
+    if context == 'group':
+        nav_str = f"""[ 
+            <a href="{SUMMARY_FILE}" class="plain">Summary</a> | 
+            <a href="{INDEX_FILE}" class="plain">Gallery</a> | 
+            {nav_top}
+            {nav_years}
+            ]"""
+    elif context == 'gallery':
+        nav_str = f"""[ 
+            <a href="{SUMMARY_FILE}" class="plain">Summary</a> | 
+            Gallery | 
+            {nav_top}
+            {nav_years}
+            ]"""
+    elif context == 'summary':
+        nav_str = f"""[ 
+            Summary | 
+            <a href="{INDEX_FILE}" class="plain">Gallery</a> | 
+            {nav_top}
+            {nav_years}
+            ]"""
+
+    return nav_str
+
 def save_group_html(this_data):
     action = "template"
     source = "filedata"
@@ -757,6 +808,7 @@ def save_group_html(this_data):
         time_frame = ''
     elif rdata['last_year'] == 0:
         time_frame = f" <em>({rdata['first_year']}-Present)</em>"
+    nav_str = get_navigation_str('group', root)
     with open(grouped_path, 'w') as f:
         f.write(f"""<!DOCTYPE html><html><head><meta name="robots" content="none">\n""")
         f.write(f"""<link rel="stylesheet" type="text/css" href="{CSS_FILE_MAIN}">\n""")
@@ -769,10 +821,11 @@ def save_group_html(this_data):
         else:
             f.write(f"""<h2><a href="{rdata['map_url']}" target="_blank" rel="noopener noreferrer" style="text-decoration: none;">{loc}</a>{time_frame}</h2>\n""")
         f.write(f"<h3>Description: {title}</h3>\n")
-        f.write(f"""<h4>[ <a href="{SUMMARY_FILE}" class="plain">Summary</a> | <a href="{INDEX_FILE}" class="plain">Gallery</a> | <a href="../{INDEX_FILE}" class="plain">Top</a> | <a href="../{last_year}" class="plain">{last_year}</a> | {this_year} | <a href="../{next_year}" class="plain">{next_year}</a> ]</h4>\n\n""")
+        f.write(f"""<h4>{nav_str}</h4>\n\n""")
         f.write(f"""<p>\n<!-- group_description -->{group_description}\n</p>\n\n<table class="main">\n""")
         for entry in this_data:
             if not os.path.exists(entry['new_name']): continue
+#            msg('#entry', entry)
             media_type = entry['mime_type'][0]
             if entry['map_style'] == 1:
                 style_str = "This "
@@ -846,6 +899,7 @@ def create_index(target, recurse, verbose):
         last_year = year - 1
         next_year = year + 1
         title = f"Media Gallery {year}"
+        nav_str = get_navigation_str('gallery', root)
         with open(index_path, 'w') as f:
             f.write(f"""<!DOCTYPE html>
 <html lang="en">
@@ -857,7 +911,7 @@ def create_index(target, recurse, verbose):
 </head>
 <body>
     <h2 style="text-align:center;">{title}</h2>
-    <h4 style="text-align:center;">[ <a href="{SUMMARY_FILE}" class="plain">Summary</a> | Gallery | <a href="../{INDEX_FILE}" class="plain">Top</a> | <a href="../{last_year}" class="plain">{last_year}</a> | {year} | <a href="../{next_year}" class="plain">{next_year}</a> ]</h4>
+    <h4 style="text-align:center;">{nav_str}</h4>
     <div class="gallery-grid">
 """)
             for entry in mdata:
@@ -929,6 +983,20 @@ def create_index(target, recurse, verbose):
 """)
     print()
 
+def reset_revisions(target, recurse):
+    notice("Resetting the Revision Histories")
+    dir_groups = get_dir_groups(target, recurse)
+
+    for root, files in dir_groups.items():
+        msg('dir', root)
+        mdata = get_media_data(root)
+        mdata_dict = {item['new_name']: item for item in mdata}
+        for key in mdata_dict.keys():
+            mdata_dict[key]['rev'] = [mdata_dict[key]['rev'][0], mdata_dict[key]['rev'][-1]]
+        mdata = list(mdata_dict.values())
+        with open(os.path.join(root, f"{MEDIA_DATA_FILE}"), 'w') as f:
+            json.dump(mdata, f, indent=4)
+
 def filename_to_modification_dt(target, action, recurse, verbose):
     ### use target instead of os.walk(".")
     notice("Modifing Media Files")
@@ -958,6 +1026,10 @@ def filename_to_modification_dt(target, action, recurse, verbose):
         updated_datetime = {'meta': 0, 'fs': 0}
         mdata = get_media_data(root)
         mdata_dict = {item['new_name']: item for item in mdata}
+        rdata = mdata[0]
+        this_year = rdata['year']
+        last_year = this_year - 1
+        next_year = this_year + 1
         change_log = []
 
         for key in mdata_dict.keys():
@@ -994,21 +1066,22 @@ def filename_to_modification_dt(target, action, recurse, verbose):
 
         dtnow = datetime.now().strftime('%B %d, %Y')
         summary_path = os.path.join(root, SUMMARY_FILE)
+        nav_str = get_navigation_str('summary', root)
 
         msg('summary', "Writing Summary File")
         with open(summary_path, 'w') as sf:
             sf.write(f'<!DOCTYPE html><html><head><meta name="robots" content="none">\n')
-            sf.write(f'<title>Summary</title>\n')
+            sf.write(f'<title>Summary {this_year}</title>\n')
             sf.write(f"""<link rel="stylesheet" type="text/css" href="style.css">\n""")
             sf.write(f"""<meta charset="UTF-8">\n""")
             sf.write(f"""<meta name="viewport" content="width=device-width, initial-scale=1.0">\n""")
             sf.write(f'</head>\n')
-            sf.write(f'<body><h1 align="center">Summary</h1>\n')
+            sf.write(f'<body><h1 align="center">Summary {this_year}</h1>\n')
             sf.write(f'<center><table><tr><td>Summary Date:</td><td>{dtnow}</td></tr>\n')
             sf.write(f'<tr><td>Summary For:</td><td>{root}</td></tr>\n')
             sf.write(f"<tr><td>Media Files:</td><td>Images: {count['image']}, Videos: {count['video']}, Audio: {count['audio']}, TOTAL: {count['total']}</td></tr>\n")
             sf.write(f'<tr><td>Organized By:</td><td>Media Organizer, v{SVER}</td></tr>\n')
-            sf.write(f'<tr><td>Navigation:</td><td>[ Summary | <a href="{INDEX_FILE}" class="plain">Gallery</a> | <a href="../{INDEX_FILE}" class="plain">Top</a> ]</td></tr>\n')
+            sf.write(f'<tr><td>Navigation:</td><td>{nav_str}</td></tr>\n')
             sf.write(f"</table><br><table>\n")
             sf.write(f"""
 <tr><td>Filename Format</td><td><strong>YYYYMMDD-HHMMSS[-State][-Location][-Description](_#).ext</strong></td></tr>
@@ -1088,9 +1161,10 @@ def process_media(target_input, recurse, adjacent, state_arg, location_arg, desc
             else:
                 d = create_default_entry()
                         
-            s_val = state_arg if state_arg else d['state']
-            l_val = location_arg if location_arg  else d['location']
-            d_val = description_arg if description_arg  else d['description']
+            s_val = state_arg if state_arg is not None else (match.group(2) if match else d['state'])
+            l_val = location_arg if location_arg is not None else (match.group(3) if match else d['location'])
+            d_val = description_arg if description_arg is not None else (match.group(4) if match else d['description'])
+
             dt = ''
 
             if forced:
@@ -1183,14 +1257,14 @@ def process_media(target_input, recurse, adjacent, state_arg, location_arg, desc
                 d['location'] = l_val if l_val else ""
                 d['description'] = d_val if d_val else ""
                 d['title'] = d_val.replace('_', ' ').title() if d_val else ""
-                d['gallery_description'] = d['title']
+                if not d['gallery_description']: d['gallery_description'] = d['title']
                 if l_val in LOCATION_TAG:
                     d['first_year'] = LOCATION_TAG[l_val]['begin']
                     d['last_year'] = LOCATION_TAG[l_val]['end']
                 d['gps'] = gps_str
-                d['map_url'] = map_url
-                d['map_style'] = map_style
-                d['address'] = address
+                if not d['map_url']: d['map_url'] = map_url
+                if not d['map_style']: d['map_style'] = map_style
+                if not d['address']: d['address'] = address
                 d['year'] = get_year(new_name)
                 d['mime_type'] = get_mime_list(new_path)
                 d['updated_datetime'] = updated_datetime
@@ -1369,7 +1443,7 @@ def finalize_descriptions(target, recurse):
         html_files = glob.glob("group-*.html")
 
         for file_path in html_files:
-            msg('group', f"Extracting title and group descriptions from {file_path}")
+            msg('group', f"Extracting title, group, and media descriptions from {file_path}")
             with open(file_path, "r", encoding="utf-8") as f:
                 content = f.read()
 
@@ -1382,7 +1456,6 @@ def finalize_descriptions(target, recurse):
             group_description = group_match.group(1).strip() if group_match else ""
 
 #            msg('debug', f">  file_path={file_path}, group_description={group_description}, title={title_description}")
-            msg('group', f"Extracting media descriptions from {file_path}")
             # 3. Extract table rows for media keys and descriptions
             for row in row_regex.finditer(content):
                 row_text = row.group(0)
@@ -1397,10 +1470,14 @@ def finalize_descriptions(target, recurse):
                 media_description = media_match.group(1).strip() if media_match else ""
 #                msg('debug', f">  key={key}, media_description={media_description}")
 
-                # 3. Save both extracted values into the dictionary
-                mdata_dict[key]["title"] = title_description
-                mdata_dict[key]["group_description"] = group_description
-                mdata_dict[key]["media_description"] = media_description
+                try:
+                    # 3. Save both extracted values into the dictionary
+                    mdata_dict[key]["title"] = title_description
+                    mdata_dict[key]["group_description"] = group_description
+                    mdata_dict[key]["media_description"] = media_description
+                except Exception as e:
+                    msg('error', f"finalize_descriptions,key,{file_path}: {e}")
+                    pass
 
         mdata = list(mdata_dict.values())
         with open(os.path.join(root, f"{MEDIA_DATA_FILE}"), 'w') as f:
@@ -1427,17 +1504,19 @@ if __name__ == "__main__":
     parser.add_argument("file", nargs='+', help="Target folder or file(s) (e.g. /media/*.jpg)")
     parser.add_argument("-a", "--adjacent", action="store_true", help="Adjacent date logic")
     parser.add_argument("-b", "--build", action="store_true", help="Build the directory web with: template > index > modified")
-    parser.add_argument("-c", "--convert", action="store_true", help="Convert " + ext_image_convert_str + " to jpg, and " + ext_video_convert_str + " to mp4. Converted files inherit source file date and time.")
+    parser.add_argument("-c", "--convert", action="store_true", help="Convert " + ext_image_convert_str + " to jpg, and " + ext_video_convert_str + " to mp4. Converted files inherit source file data.")
     parser.add_argument("-C", "--convert-remove", action="store_true", help="Same as --convert and deletes the originals")
     parser.add_argument("-r", "--recurse", action="store_true", default=False, help="Recurse subdirs")
     parser.add_argument("-f", "--force", action="store_true", help="Force evaluating files, even if previously renamed")
     parser.add_argument("-e", "--reverse", action="store_true", help="Reverse last session")
+    parser.add_argument("-n", "--reset-revisions", action="store_true", help="Clear the revision history retaining the first and last entries")
     parser.add_argument("-m", "--modified", action="store_true", help=f"Use the current filename to update the file creation/modification/access date/time, then write {SUMMARY_FILE}")
     parser.add_argument("-o", "--original", action="store_true", help="Restore original filenames and delete logs")
     parser.add_argument("-p", "--template", action="store_true", help="Creates a description template file for the file given")
     parser.add_argument("-g", "--log", action="store_true", help="Display latest JSON log summary")
     parser.add_argument("-G", "--all-logs", action="store_true", help="Display latest JSON log summary in all subdirs")
     parser.add_argument("-i", "--index", action="store_true", help="Creates an index.html for the directory gallery of images")
+    parser.add_argument("-t", "--time-sequenced", action="store_true", help="Use -T/--hhmmss time if given or the first file's time, and increment it for sebsequent files")
     parser.add_argument("-z", "--finalize", action="store_true", help="Extracts final descriptions and edits to store them in the log")
     parser.add_argument("-v", "--verbose", action="store_true", help="Enables verbose output")
     parser.add_argument("-s", "--state", help="State tag, Unsupported characters [-._]")
@@ -1445,7 +1524,6 @@ if __name__ == "__main__":
     parser.add_argument("-d", "--description", help="Description tag, Unsupported characters [-.]")
     parser.add_argument("-D", "--yyyymmdd", type=date_digits, help="Override meta creation(if possible) and filesystem modification date value, requires 8 digits")
     parser.add_argument("-T", "--hhmmss", type=time_digits, help="Override meta creation(if possible) and filesystem modification time value, requires 6 digits")
-    parser.add_argument("-t", "--time-sequenced", action="store_true", help="Use -T/--hhmmss time if given or the first file's time, and increment it for sebsequent files")
     
     print(f"Media Organizer, v{SVER}")
     if len(sys.argv) == 1: 
@@ -1463,6 +1541,7 @@ if __name__ == "__main__":
     if args.log: display_logs(target_input, args.verbose, all_subdirs=False)
     elif args.all_logs: display_logs(target_input, args.verbose, all_subdirs=True)
     elif args.template: create_group_templates(target_input, args.recurse)
+    elif args.reset_revisions: reset_revisions(target_input, args.recurse)
     elif args.reverse: reverse_last_session(target_input, args.recurse)
     elif args.original: restore_original_names(target_input, args.recurse)
     elif args.modified: filename_to_modification_dt(target_input, 'updated', args.recurse, args.verbose)

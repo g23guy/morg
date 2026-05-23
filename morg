@@ -212,7 +212,7 @@ def create_default_entry():
         "title": '', # underscores are changed to spaces and the string coverted to initial caps
         "first_year": 0, # first year living at this address
         "last_year": 0, # last year living at this address
-        "map_style": 0, # 0: None, 1: https://www.google.com/maps/place/street+city+state+zip/@lat,lon,200m, 2: https://www.google.com/maps/search/?api=1&query=lat,lon
+        "map_style": 0, # 0: None, 1: https://www.google.com/maps/place/street+city+state+zip/@lat,lon,200m (this_map), 2: https://www.google.com/maps/search/?api=1&query=lat,lon (media maps)
         "map_url": '', # the google map string to identify the map location of the media
         "gps": '', # the gps coordinates found in the media metadata
         "address": '', # the address string of the media location

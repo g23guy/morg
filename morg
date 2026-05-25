@@ -45,6 +45,7 @@ SVER = '0.9.5_dev'
 #
 ##############################################################################
 
+#from pprint import pprint
 import os
 import re
 import json
@@ -784,47 +785,54 @@ def get_navigation_str(key, root, mdata):
 
     return nav_str
 
-def save_group_html(this_data):
+def save_group_html(group_key, mdata):
     action = "template"
     source = "filedata"
-    rdata = this_data[0]
-    root = rdata['root']
-    grouped_name = rdata['group_name']
-    group_description = rdata['group_description']
-    msg(action, f"Saving grouped file {grouped_name}... ", flush=True)
-    grouped_path = f"{root}/{grouped_name}"
-    this_year = rdata['year']
-    last_year = this_year - 1
-    next_year = this_year + 1
-    title = rdata['title']
-    loc = rdata['address']
-    time_frame = f" <em>({rdata['first_year']}-{rdata['last_year']})</em>"
-    if rdata['first_year'] == 0:
-        time_frame = ''
-    elif rdata['last_year'] == 0:
-        time_frame = f" <em>({rdata['first_year']}-Present)</em>"
-    nav_str = get_navigation_str('group', root, this_data)
+    root = mdata['summary'].get('root')
+    group_name = mdata[group_key].get('group_name')
+    title = mdata[group_key].get('group_title')
+    loc = mdata[group_key].get('address')
+    loc_url = mdata[group_key].get('address_url')
+    time_frame = mdata[group_key].get('span')
+    group_description = mdata[group_key].get('group_description')
+    group_year = mdata[group_key].get('year')
+    this_year = f" {group_year}" if group_year > 0 else ""
+
+    msg(action, f"Saving grouped file {group_name}... ", flush=True)
+    grouped_path = f"{root}/{group_name}"
+    nav_str = get_navigation_str(group_key, root, mdata)
     with open(grouped_path, 'w') as f:
         f.write(f"""<!DOCTYPE html><html><head><meta name="robots" content="none">\n""")
         f.write(f"""<link rel="stylesheet" type="text/css" href="{CSS_FILE_MAIN}">\n""")
         f.write(f"""<meta charset="UTF-8">\n""")
         f.write(f"""<meta name="viewport" content="width=device-width, initial-scale=1.0">\n""")
         f.write(f"<title>{title}</title></head><body>\n")
-        f.write(f"<h1>Year {this_year}</h1>\n")
-        if rdata['map_url'] == "N/A" or loc == "Missing":
+        f.write(f"<h1>Year{this_year}</h1>\n")
+        if loc_url == "N/A" or loc == "Missing":
             f.write(f"""<h2>{loc}</h2>\n""")
         else:
-            f.write(f"""<h2><a href="{rdata['map_url']}" target="_blank" rel="noopener noreferrer" style="text-decoration: none;">{loc}</a>{time_frame}</h2>\n""")
+            f.write(f"""<h2><a href="{loc_url}" target="_blank" rel="noopener noreferrer" style="text-decoration: none;">{loc}</a>{time_frame}</h2>\n""")
         f.write(f"<h3>Description: {title}</h3>\n")
         f.write(f"""<h4>{nav_str}</h4>\n\n""")
         f.write(f"""<p>\n<!-- group_description -->{group_description}\n</p>\n\n<table class="main">\n""")
-        for entry in this_data:
-            if not os.path.exists(entry['new_name']): continue
-#            msg('#entry', entry)
-            media_type = entry['mime_type'][0]
-            if entry['map_style'] == 1:
+        for media_key in mdata[group_key].keys():
+            ext = os.path.splitext(media_key)[-1].lower()
+            if not ext in ext_all: continue
+            new_name = mdata[group_key][media_key].get('new_name')
+            if not os.path.exists(new_name): continue
+            cover_name = mdata[group_key][media_key].get('cover_name')
+            media_duration = mdata[group_key][media_key].get('duration')
+            media_type_list = mdata[group_key][media_key].get('mime_type')
+            media_type = media_type_list[0]
+#            mime_type = '/'.join(media_type_list)
+            map_style = mdata[group_key][media_key].get('map_style')
+            map_url = mdata[group_key][media_key].get('map_url')
+            media_description = mdata[group_key][media_key].get('media_description')
+            gallery_description = mdata[group_key][media_key].get('gallery_description')
+
+            if map_style == 1:
                 style_str = "This "
-            elif entry['map_style'] == 2:
+            elif map_style == 2:
                 if media_type == "image":
                     style_str = "Photo "
                 elif media_type == "video":
@@ -836,18 +844,18 @@ def save_group_html(this_data):
             else:
                 style_str = ''
             if media_type == "video" or media_type == "audio":
-                duration = f" ({entry['duration']})"
-                filetype = f"""\n    <a href="{entry['new_name']}" target="{entry['new_name']}">{media_type.title()}{duration}</a>"""
-                cover_str = f"""\n    <a href="{entry['cover_name']}" target="{entry['cover_name']}">Photo</a>""" if entry['cover_name'] else ""
+                duration = f" ({media_duration})"
+                filetype = f"""\n    <a href="{new_name}" target="{new_name}">{media_type.title()}{duration}</a>"""
+                cover_str = f"""\n    <a href="{cover_name}" target="{cover_name}">Photo</a>""" if cover_name else ""
             else:
                 filetype = ''
                 cover_str = ''
-            map_str = '' if entry['map_url'] == "N/A" else f"""\n    <a href="{entry['map_url']}" target="_blank">{style_str}Map</a>"""
-            image_str = f"""<a href="{entry['new_name']}" target="{entry['new_name']}"><img src="{entry['new_name']}"></a>""" if media_type == "image" else 'N/A'
+            map_str = '' if map_url == "N/A" else f"""\n    <a href="{map_url}" target="_blank">{style_str}Map</a>"""
+            image_str = f"""<a href="{new_name}" target="{new_name}"><img src="{new_name}"></a>""" if media_type == "image" else 'N/A'
             if media_type == "image":
-                media_str = f"""<a href="{entry['new_name']}" target="{entry['new_name']}"><img src="{entry['new_name']}" alt="{entry['new_name']}" title="{entry['new_name']}"></a>"""
+                media_str = f"""<a href="{new_name}" target="{new_name}"><img src="{new_name}" alt="{new_name}" title="{new_name}"></a>"""
             else:
-                media_str = f"""<a href="{entry['new_name']}" target="{entry['new_name']}"><img src="{entry['cover_name']}" alt="{entry['new_name']}" title="{entry['new_name']}"></a>"""
+                media_str = f"""<a href="{new_name}" target="{new_name}"><img src="{cover_name}" alt="{new_name}" title="{new_name}"></a>"""
             if filetype and map_str and cover_str:
                 descriptor_str = f"{filetype}<br>{map_str}<br>{cover_str}\n"
             elif filetype:
@@ -856,7 +864,7 @@ def save_group_html(this_data):
                 descriptor_str = f"{map_str}\n"
             else:
                 descriptor_str = '\n'
-            f.write(f"""<tr>\n  <td>{media_str}</td>\n  <td>{descriptor_str}  </td><td>\n<!-- media_description -->{entry['media_description']}\n  </td>\n</tr>\n""")
+            f.write(f"""<tr>\n  <td>{media_str}</td>\n  <td>{descriptor_str}  </td><td>\n<!-- media_description -->{media_description}\n  </td>\n</tr>\n""")
         f.write(f"</table>\n\n</body></html>\n")
     msg('', "Done")
 
@@ -871,15 +879,9 @@ def create_group_templates(target, recurse):
             msg('error', f"File not found - {MEDIA_DATA_FILE}, run 'morg .' first")
             return
 
-        grouped_data = {}
-        for item in mdata:
-            group_name = item["description"]
-            if group_name not in grouped_data:
-                grouped_data[group_name] = []
-            grouped_data[group_name].append(item)
-
-        for item in grouped_data.keys():
-            save_group_html(grouped_data[item])
+        for group_key in mdata.keys():
+            if group_key.startswith("summary"): continue
+            save_group_html(group_key, mdata)
     print()
 
 def create_index(target, recurse, verbose):
@@ -921,13 +923,18 @@ def create_index(target, recurse, verbose):
                 for media_key in mdata[group_key].keys():
                     ext = os.path.splitext(media_key)[-1].lower()
                     if not ext in ext_all: continue
+                    new_name = mdata[group_key][media_key].get('new_name')
+                    if not os.path.exists(new_name): continue
+                    cover_name = mdata[group_key][media_key].get('cover_name')
                     media_type_list = mdata[group_key][media_key].get('mime_type')
                     media_type = media_type_list[0]
                     mime_type = '/'.join(media_type_list)
-                    new_name = mdata[group_key][media_key].get('new_name')
-                    cover_name = mdata[group_key][media_key].get('cover_name')
+                    map_style = mdata[group_key][media_key].get('map_style')
+                    map_url = mdata[group_key][media_key].get('map_url')
+                    media_description = mdata[group_key][media_key].get('media_description')
                     gallery_description = mdata[group_key][media_key].get('gallery_description')
-                    if not os.path.exists(new_name): continue
+
+
                     if media_type == "image":
                         f.write(f"""        <!-- Image Item -->
             <div class="gallery-item">
@@ -940,7 +947,7 @@ def create_index(target, recurse, verbose):
                     <div class="link-group">
                         <a href="{group_name}">Details</a>
                         <a href="{new_name}" target="{new_name}">Photo</a>
-    <!-- gallery_description -->{gallery_description}
+<!-- gallery_description -->{gallery_description}
                     </div>
                 </div>
             </div>
@@ -960,7 +967,7 @@ def create_index(target, recurse, verbose):
                     <div class="link-group">
                         <a href="{group_name}">Details</a>{photo_link}
                         <a href="{new_name}" target="{new_name}">Video</a>
-    <!-- gallery_description -->{gallery_description}
+<!-- gallery_description -->{gallery_description}
                     </div>
                 </div>
             </div>
@@ -982,15 +989,15 @@ def create_index(target, recurse, verbose):
                 <div class="content-box">
                     <div class="link-group">
                         <a href="{group_name}">Details</a>{photo_link}
-    <!-- gallery_description -->{gallery_description}
+<!-- gallery_description -->{gallery_description}
                     </div>
                 </div>
             </div>
     """)
-                f.write(f"""    </div>
-    </body>
-    </html>
-    """)
+            f.write(f"""    </div>
+        </body>
+        </html>
+        """)
     print()
 
 def reset_revisions(target, recurse):
@@ -1076,10 +1083,12 @@ def create_summary(target, recurse, verbose):
     description of the Record Family Reunion along with the names of people in the photos open the file:<br>
     <em>20000609-160000-ca-groveland-record_family_reunion.html</em>. The .html files group events together. So if you want<br>
     to know more about a picture or video, open the .html file with same description tag in the filename.</p>
+
+    <hr><h4>HTML Group Description File List</h4>
+    <p>Media files are grouped together using the description tag. These files contain a desciption of<br>the event and the names of people in the images. Not all grouped files will have a description file.
 </details>
             \n""")
-            sf.write(f"<hr><h4>HTML Group Description File List</h4>\n")
-            sf.write(f"<p>Media files are grouped together using the description tag. These files contain a desciption of<br>the event and the names of people in the images. Not all grouped files will have a description file.</p>\n")
+
             sf.write(f'<table><tr><th>Event</th></tr>\n')
             for key in mdata.keys():
                 if key.startswith("group-"):
@@ -1237,11 +1246,15 @@ def process_media(target_input, recurse, adjacent, state_arg, location_arg, desc
             if overridden:
                 updated_datetime = set_datetime(new_path, dt)
 
+            first_year = 0
+            last_year = 0
             gps_str = get_gpsinfo(new_path)
             file_year = get_year(new_name)
             map_url, map_style = get_gpsurl(gps_str, l_val)
             if l_val in LOCATION_TAG:
                 address = LOCATION_TAG[l_val]['addr']
+                first_year = LOCATION_TAG[l_val]['begin']
+                last_year = LOCATION_TAG[l_val]['end']
             elif s_val == None and l_val == None and d_val == None:
                 address = "Missing"
             elif s_val != None and l_val != None:
@@ -1271,7 +1284,7 @@ def process_media(target_input, recurse, adjacent, state_arg, location_arg, desc
             if not d.get('orig_name'): d.update({'orig_name': old_name})
             if not d.get('gallery_description'): d.update({'gallery_description': group_title})
             if l_val in LOCATION_TAG:
-                d.update({'first_year': LOCATION_TAG[l_val]['begin'], 'last_year': LOCATION_TAG[l_val]['end']})
+                d.update({'first_year': first_year, 'last_year': last_year})
             d.update({"year": file_year, "state": s_val, "location": l_val, "description": d_val})
             d.update({"gps": gps_str})
             d.update({"mime_type": mime_type_list})
@@ -1293,6 +1306,13 @@ def process_media(target_input, recurse, adjacent, state_arg, location_arg, desc
             else:
                 if group_year != file_year:
                     mdata[group_key].update({'year': 0})
+            time_frame = f" <em>({first_year}-{last_year})</em>"
+            if first_year == 0:
+                time_frame = ''
+            elif last_year == 0:
+                time_frame = f" <em>({first_year}-Present)</em>"
+            mdata[group_key].update({'span': time_frame})
+
 
             summary_year = mdata['summary'].get('year')
             if summary_year < 0:
@@ -1300,6 +1320,7 @@ def process_media(target_input, recurse, adjacent, state_arg, location_arg, desc
             else:
                 if summary_year != file_year:
                     mdata['summary'].update({'year': 0})
+
             d.update({'status': status})
             u = {}
             u[new_name] = d

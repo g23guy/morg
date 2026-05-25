@@ -196,26 +196,21 @@ def msg(action, msg, flush=False):
 
 def create_default_entry():
     entry = {
-        "root": '', # root of the directory
         "new_name": '', # the new filename being used
         "prev_name": '', # the previous filename used, used to restore last session
         "orig_name": '', # the original filename, used to restore original filenames
         "cover_name": '', # for audio/video file, the .jpg that covers the media
-        "group_name": '', # the group html file
-        "group_description": '', # the group description in the group html file
         "media_description": '', # the individual file's description in the group html file
         "gallery_description": '', # the caption used for a gallery tile
         "year": 0, # the year of this media file
         "state": '', # state code like ut, ca, vt, etc
         "location": '', # the city or the location code for LOCATION_TAG lookup
         "description": '', # description for a group of files
-        "title": '', # underscores are changed to spaces and the string coverted to initial caps
         "first_year": 0, # first year living at this address
         "last_year": 0, # last year living at this address
         "map_style": 0, # 0: None, 1: https://www.google.com/maps/place/street+city+state+zip/@lat,lon,200m (this_map), 2: https://www.google.com/maps/search/?api=1&query=lat,lon (media maps)
         "map_url": '', # the google map string to identify the map location of the media
         "gps": '', # the gps coordinates found in the media metadata
-        "address": '', # the address string of the media location
         "mime_type": [], # general and type
         "duration": '', # the duration in mm:ss of audio/video files
         "updated_datetime": {
@@ -224,7 +219,7 @@ def create_default_entry():
         },
         "date_used": '', # the date used for renaming files
         "date_source": '', # where the date_used came from
-        "rev": [], # update revision [action, log_time] what happened and when YYYMMDD_HHMMSS with a list of lists
+        "rev": [], # update revision what happened and when YYYMMDD_HHMMSS
         "status": '', # unused for now
     }
 
@@ -236,7 +231,7 @@ def get_media_data(path):
         with open(file, 'r') as f:
             data = json.load(f)
     else:
-        data = []
+        data = {}
     return data
 
 def cleanup_media_data(mdata_dict):
@@ -339,7 +334,7 @@ def get_datetime(filepath):
     return datetime.fromtimestamp(os.path.getmtime(filepath)), "modification"
 
 def set_datetime(file_path, dt):
-    updated_datetime = {'meta': 0, 'fs': 0}
+    updated_datetime = [0, 0]
     ext = os.path.splitext(file_path)[-1].lower()
     dt_stamp = dt.timestamp()
     new_date = dt.strftime("%Y:%m:%d %H:%M:%S")
@@ -352,7 +347,7 @@ def set_datetime(file_path, dt):
                 exif_dict['Exif'][piexif.ExifIFD.DateTimeDigitized] = new_date.encode('utf-8')
                 exif_bytes = piexif.dump(exif_dict)
                 img.save(file_path, exif=exif_bytes)
-            updated_datetime['meta'] = 1
+            updated_datetime[0] = 1
         except Exception: pass
 
     if ext in ext_videos or ext in ext_sounds:
@@ -367,12 +362,12 @@ def set_datetime(file_path, dt):
             with exiftool.ExifToolHelper() as et:
                 # Note: set_tags expects a list of files even if it's just one
                 et.set_tags([file_path], tags=tags_to_set, params=params)
-            updated_datetime['meta'] = 1
+            updated_datetime[0] = 1
         except Exception: pass
 
     try:
         os.utime(file_path, (dt_stamp, dt_stamp))
-        updated_datetime['fs'] = 1
+        updated_datetime[1] = 1
     except Exception: pass
 
     return updated_datetime
@@ -486,7 +481,9 @@ def restore_original_names(target_path, recurse):
     root = target_path['root']
     # once files are converted, they are not converted back
     mdata = get_media_data(root)
-    if not mdata: return
+    if not mdata:
+        msg('error', f"File not found - {MEDIA_DATA_FILE}, run 'morg .' first")
+        return
 
     for entry in mdata:
         if entry.get('status') == 'success':
@@ -872,6 +869,9 @@ def create_group_templates(target, recurse):
         msg('dir', root)
         create_style_css(root)
         mdata = get_media_data(root)
+        if not mdata:
+            msg('error', f"File not found - {MEDIA_DATA_FILE}, run 'morg .' first")
+            return
 
         grouped_data = {}
         for item in mdata:
@@ -894,6 +894,9 @@ def create_index(target, recurse, verbose):
         msg('dir', root)
         create_gallery_css(root)
         mdata = get_media_data(root)
+        if not mdata:
+            msg('error', f"File not found - {MEDIA_DATA_FILE}, run 'morg .' first")
+            return
 
         year = mdata[0].get('year')
         last_year = year - 1
@@ -990,6 +993,9 @@ def reset_revisions(target, recurse):
     for root, files in dir_groups.items():
         msg('dir', root)
         mdata = get_media_data(root)
+        if not mdata:
+            msg('error', f"File not found - {MEDIA_DATA_FILE}, run 'morg .' first")
+            return
         mdata_dict = {item['new_name']: item for item in mdata}
         for key in mdata_dict.keys():
             mdata_dict[key]['rev'] = [mdata_dict[key]['rev'][0], mdata_dict[key]['rev'][-1]]
@@ -1025,6 +1031,10 @@ def filename_to_modification_dt(target, action, recurse, verbose):
         source = "filename"
         updated_datetime = {'meta': 0, 'fs': 0}
         mdata = get_media_data(root)
+        if not mdata:
+            msg('error', f"File not found - {MEDIA_DATA_FILE}, run 'morg .' first")
+            if action == 'built': sys.exit()
+            else: return
         mdata_dict = {item['new_name']: item for item in mdata}
         rdata = mdata[0]
         this_year = rdata['year']
@@ -1147,30 +1157,67 @@ def process_media(target_input, recurse, adjacent, state_arg, location_arg, desc
     for root, files in dir_groups.items():
         msg('dir', f"{root}")
         mdata = get_media_data(root)
-        mdata_dict = {item['new_name']: item for item in mdata} # dictionary with new_name keys for faster lookups and modification, converted back to list before writing to fs
-
+        mdata.setdefault('summary', {
+            "summary_description": "",
+            "root": f"{root}",
+            "year": -1, # 0 for multi-year
+            "images": 0,
+            "videos": 0,
+            "audio": 0,
+            "extra_nav_link": "", # applies to SUMMARY_FILE and INDEX_FILE
+        })
+#        print(f"> mdata['summary']['root']={mdata['summary'].get('root')}")
         last_date, last_source = None, None
         for old_path in sorted(files):
-            updated_datetime = {'meta': 0, 'fs': 0}
-            file_eval += 1
-            filename = os.path.basename(old_path).lower()
-            ext = os.path.splitext(filename)[-1]
-            match = FILENAME_PATTERN.match(filename.lower())
-            if filename in mdata_dict:
-                d = mdata_dict[filename]
-            else:
-                d = create_default_entry()
-                        
-            s_val = state_arg if state_arg is not None else (match.group(2) if match else d['state'])
-            l_val = location_arg if location_arg is not None else (match.group(3) if match else d['location'])
-            d_val = description_arg if description_arg is not None else (match.group(4) if match else d['description'])
-
+#            print(f">> old_path={old_path}")
+            updated_datetime = [0, 0]
             dt = ''
+            file_eval += 1
+            old_name = os.path.basename(old_path)
+            ext = os.path.splitext(old_name)[-1].lower()
+            match = FILENAME_PATTERN.match(old_name)
+            found_group_key = False
+            found_media_key = False
+            if not ext in ext_all: continue
+            for group_key, group_content in mdata.items():
+                # Only search inside group dictionaries, skip the summary
+                if group_key.startswith("group-") and old_name in group_content:
+                    found_group_key = True
+                    found_media_key = True
+                    break
+            if description_arg is not None:
+                d_val = description_arg
+            else:
+                if match:
+                    d_val = match.group(4)
+                    if d_val == None:
+                        d_val = "unassigned"
+                else:
+                    d_val = "unassigned"
+            if not found_group_key:
+                group_key = f"group-{d_val}"
+            group_title = d_val.replace('_', ' ').title()
+            if not found_media_key:
+                if group_key in mdata:
+                    found_group_key = True
+
+            if not found_group_key:
+                mdata[group_key] = {
+                    "group_name": f"{group_key}.html",
+                    "group_title": group_title,
+                    "group_description": "",
+                    "address": "",
+                    "address_url": "",
+                    "span": "",
+                    "year": -1,
+                    "extra_nav_link": "", # applies to group_name files
+                }
+
+            s_val = state_arg if state_arg is not None else (match.group(2) if match else (mdata[group_key][old_name].get('state', '') if old_name in mdata[group_key] else ''))
+            l_val = location_arg if location_arg is not None else (match.group(3) if match else (mdata[group_key][old_name].get('location', '') if old_name in mdata[group_key] else ''))
 
             if forced:
                 match = False
-
-#            msg('matching', f"Group 1: {match.group(1)}") if match else msg('debug', f"{old_path}: No match")
 
             try:
                 if match:
@@ -1178,7 +1225,6 @@ def process_media(target_input, recurse, adjacent, state_arg, location_arg, desc
                         dt = datetime.strptime(match.group(1), "%Y%m%d-%H%M%S")
                         dt, source = override_dt(dt, given_date, given_time)
                     else:
-#                        if (match.group(2) or "") == s_val and (match.group(3) or "") == l_val and (match.group(4) or "") == d_val: continue
                         dt, source = datetime.strptime(match.group(1), "%Y%m%d-%H%M%S"), "existing"
                 else:
                     if ext not in extensions: continue
@@ -1193,8 +1239,9 @@ def process_media(target_input, recurse, adjacent, state_arg, location_arg, desc
                     else:
                         dt, source = last_date, "adjacent"
             except Exception as e:
-                msg('error', f"process_media: DT {filename}: {e}")
+                msg('error', f"process_media,dt/source {old_name}: {e}")
                 continue
+#            print(f">>> source={source}, dt={dt}")
 
             if (ext in ('.jpeg')):
                 target_ext = '.jpg'
@@ -1215,162 +1262,188 @@ def process_media(target_input, recurse, adjacent, state_arg, location_arg, desc
                 new_path = os.path.join(root, new_name)
                 counter += 1
             
-#            if os.path.abspath(new_path) == os.path.abspath(old_path) and not forced: continue
-
+            file_cnt += 1
+            renamed = False
+            status = 'success'
             try:
-                file_cnt += 1
-                renamed = False
                 if time_sequenced:
                     if not given_time:
                         given_time = datetime.strftime(dt, "%H%M%S")
                     current_time = datetime.strptime(given_time, "%H%M%S")
                     current_time += timedelta(seconds=4)
                     given_time = current_time.strftime("%H%M%S")
-                        
+            except Exception as e:
+                msg('error', f"process_media,datetime {old_name}: {e}")
+                status = 'failed'
+
+            try:
                 if os.path.abspath(new_path) != os.path.abspath(old_path):
                     renamed = True
                     action = "renamed"
                     os.rename(old_path, new_path)
                 else:
                     action = "reviewed"
-                if overridden:
                     updated_datetime = set_datetime(new_path, dt)
 
-                gps_str = get_gpsinfo(new_path)
-                map_url, map_style = get_gpsurl(gps_str, l_val)
-    #            print(f"s_val='{s_val}', l_val='{l_val}', d_val='{d_val}', gps_str='{gps_str}', gps_url='{gps_url}'")
-                if l_val in LOCATION_TAG:
-                    address = LOCATION_TAG[l_val]['addr']
-                elif s_val == None and l_val == None and d_val == None:
-                    address = "Missing"
-                elif s_val != None and l_val != None:
-                    address = f"{l_val.replace('_', ' ').title()}, {s_val.upper()}"
-                else:
-                    address = "Unknown"
+            except Exception as e:
+                msg('error', f"process_media,{action} {old_name}: {e}")
+                status = 'failed'
 
-                d['root'] = root
-                d['new_name'] = new_name
-                if renamed: d['prev_name'] = filename
-                if not d['orig_name']: d['orig_name'] = filename
-                d['group_name'] = f"group-{d_val}.html" if d_val else ""
-                d['state'] = s_val if s_val else ""
-                d['location'] = l_val if l_val else ""
-                d['description'] = d_val if d_val else ""
-                d['title'] = d_val.replace('_', ' ').title() if d_val else ""
-                if not d['gallery_description']: d['gallery_description'] = d['title']
-                if l_val in LOCATION_TAG:
-                    d['first_year'] = LOCATION_TAG[l_val]['begin']
-                    d['last_year'] = LOCATION_TAG[l_val]['end']
-                d['gps'] = gps_str
-                if not d['map_url']: d['map_url'] = map_url
-                if not d['map_style']: d['map_style'] = map_style
-                if not d['address']: d['address'] = address
-                d['year'] = get_year(new_name)
-                d['mime_type'] = get_mime_list(new_path)
-                d['updated_datetime'] = updated_datetime
-                d['date_used'] = dt.isoformat()
-                d['date_source'] = source
-                if ext in ext_videos or ext in ext_sounds:
-                    d['duration'] = get_av_duration(new_name)
-                    d['cover_name'] = f"{tagged_base}.jpg"
-                d['rev'].append([action, log_time])
-                d['status'] = 'success'
 
-                gps_id = "gps-" if gps_str == "N/A" else "gps+"
-                mdata_dict[new_name] = d
-                msg(action, f"{d['updated_datetime']['meta']} {d['updated_datetime']['fs']} {gps_id}: {filename} -> {new_name} ({source})")
-                last_date, last_source = dt, source
-            except Exception as e: msg('error', f"process_media: {action} {filename}: {e}")
+            if overridden:
+                updated_datetime = set_datetime(new_path, dt)
+
+            gps_str = get_gpsinfo(new_path)
+            file_year = get_year(new_name)
+            map_url, map_style = get_gpsurl(gps_str, l_val)
+            if l_val in LOCATION_TAG:
+                address = LOCATION_TAG[l_val]['addr']
+            elif s_val == None and l_val == None and d_val == None:
+                address = "Missing"
+            elif s_val != None and l_val != None:
+                address = f"{l_val.replace('_', ' ').title()}, {s_val.upper()}"
+            else:
+                address = "Unknown"
+
+            if not found_media_key:
+                d = create_default_entry()
+                old_key = ''
+            else:
+                d = copy.deepcopy(mdata[group_key].get(old_name))
+                old_key = old_name # in case it needs deleting by convert_remove
+
+
+            d.update({"new_name": new_name})
+            if renamed: d.update({'prev_name': old_name})
+            if not d.get('orig_name'): d.update({'orig_name': old_name})
+            if not d.get('gallery_description'): d.update({'gallery_description': group_title})
+            if l_val in LOCATION_TAG:
+                d.update({'first_year': LOCATION_TAG[l_val]['begin'], 'last_year': LOCATION_TAG[l_val]['end']})
+            d.update({"year": file_year, "state": s_val, "location": l_val, "description": d_val})
+            d.update({"gps": gps_str})
+            d.update({"mime_type": get_mime_list(new_path)})
+            d["updated_datetime"].update({"meta": updated_datetime[0], "fs": updated_datetime[1]})
+            d.update({"date_used": dt.isoformat()})
+            d.update({"date_source": source})
+            if not d.get('map_url'): d.update({'map_url': map_url})
+            if not d.get('map_style'): d.update({'map_style': map_style})
+            if ext in ext_videos or ext in ext_sounds:
+                d.update({'duration': get_av_duration(new_name), 'cover_name': f"{tagged_base}.jpg"})
+## TODO: OVERWRITES the rev key list instead of appending action
+            d['rev'].append([log_time, action])
+
+            if not mdata[group_key].get('address'): mdata[group_key].update({'address': address})
+            if not mdata[group_key].get('address_url') and map_style == 1: mdata[group_key].update({'address_url': map_url})
+
+            group_year = mdata[group_key].get('year')
+            if group_year < 0:
+                mdata[group_key].update({'year': file_year})
+            else:
+                if group_year != file_year:
+                    mdata[group_key].update({'year': 0})
+
+            summary_year = mdata['summary'].get('year')
+            if summary_year < 0:
+                mdata['summary'].update({'year': file_year})
+            else:
+                if summary_year != file_year:
+                    mdata['summary'].update({'year': 0})
+            d.update({'status': status})
+            u = {}
+            u[new_name] = d
+            mdata[group_key].update(u)
+            if renamed and old_key: mdata[group_key].pop(old_key)
+
+            gps_id = "gps-" if gps_str == "N/A" else "gps+"
+            msg(action, f"{updated_datetime[0]} {updated_datetime[1]} {gps_id}: {old_name} -> {new_name} ({source})")
+            last_date, last_source = dt, source
 
             if convert:
-                updated_datetime = {'meta': 0, 'fs': 0}
+                updated_datetime = [0, 0]
+                conversion_key = new_name
                 if ext in ext_images_convert or ext in ext_videos_convert or ext in ext_sounds_convert: 
-                    try:
-                        action = "converted"
-                        c = copy.deepcopy(d)
-                        c['status'] = "success"
-                        old_path = new_path
-                        filename = os.path.basename(new_path)
-                        if ext in ext_images_convert:
-                            target_ext = '.jpg'
-                        elif ext in ext_videos_convert: 
-                            target_ext = '.mp4'
-                        elif ext in ext_sounds_convert: 
-                            target_ext = '.mp3'
+                    action = "converted"
+                    c = copy.deepcopy(mdata[group_key].get(new_name))
+                    c['status'] = "success"
+                    old_path = new_path
+                    old_name = os.path.basename(new_path)
+                    if ext in ext_images_convert:
+                        target_ext = '.jpg'
+                    elif ext in ext_videos_convert: 
+                        target_ext = '.mp4'
+                    elif ext in ext_sounds_convert: 
+                        target_ext = '.mp3'
 
-                        new_name = f"{tagged_base}{target_ext}"
+                    new_name = f"{tagged_base}{target_ext}"
+                    new_path = os.path.join(root, new_name)
+                    counter = 1
+                    while os.path.exists(new_path) and os.path.abspath(new_path) != os.path.abspath(old_path):
+                        new_name = f"{tagged_base}_{counter}{target_ext}"
                         new_path = os.path.join(root, new_name)
-                        counter = 1
-                        while os.path.exists(new_path) and os.path.abspath(new_path) != os.path.abspath(old_path):
-                            new_name = f"{tagged_base}_{counter}{target_ext}"
-                            new_path = os.path.join(root, new_name)
-                            counter += 1
+                        counter += 1
 
-                        msg(action, f"        : {filename} -> ", flush=True)
-                        if ext in ext_images_convert:
-                            try:
-                                with Image.open(old_path) as img:
-                                    img.convert("RGB").save(new_path, "JPEG", quality=95)
-                            except Exception as e:
-                                print()
-                                msg('error', f"process_media,{action},Image.convert: {e}")
-                                c['status'] = "failed"
-                                pass
-                        elif ext in ext_videos_convert:
-                            hb = HandBrake()
-                            preset = hb.get_preset("CLI Default")
-                            try:
-                                hb.convert_title(
-                                    old_path, 
-                                    new_path, 
-                                    "1"
-                                )
-                            except Exception as e:
-                                print()
-                                msg('error', f"process_media,{action},HandBrake: {e}")
-                                c['status'] = "failed"
-                                pass
-                        elif ext in ext_sounds_convert:
-                            try:
-                                audio = AudioSegment.from_file(old_path)
-                                audio.export(new_path, format="mp3")
-                            except Exception as e:
-                                print()
-                                msg('error', f"process_media,{action},AudioSegment: {e}")
-                                c['status'] = "failed"
-                                pass
+                    msg(action, f"        : {old_name} -> ", flush=True)
+                    if ext in ext_images_convert:
+                        try:
+                            with Image.open(old_path) as img:
+                                img.convert("RGB").save(new_path, "JPEG", quality=95)
+                        except Exception as e:
+                            print()
+                            msg('error', f"process_media,{action},Image.convert: {e}")
+                            c['status'] = "failed"
+                            pass
+                    elif ext in ext_videos_convert:
+                        hb = HandBrake()
+                        preset = hb.get_preset("CLI Default")
+                        try:
+                            hb.convert_title(
+                                old_path, 
+                                new_path, 
+                                "1"
+                            )
+                        except Exception as e:
+                            print()
+                            msg('error', f"process_media,{action},HandBrake: {e}")
+                            c['status'] = "failed"
+                            pass
+                    elif ext in ext_sounds_convert:
+                        try:
+                            audio = AudioSegment.from_file(old_path)
+                            audio.export(new_path, format="mp3")
+                        except Exception as e:
+                            print()
+                            msg('error', f"process_media,{action},AudioSegment: {e}")
+                            c['status'] = "failed"
+                            pass
 
-                        msg('', f"{new_name}")
+                    msg('', f"{new_name}")
 
-                        # Make the converted file have the same time as the source file
-                        updated_datetime = set_datetime(new_path, dt)
+                    # Make the converted file have the same time as the source file
+                    updated_datetime = set_datetime(new_path, dt)
 
-                        c['root'] = root
-                        c['orig_name'] = new_name
-                        c['new_name'] = new_name
-                        c['prev_name'] = new_name
-                        c['mime_type'] = get_mime_list(new_path)
-                        c['updated_datetime'] = updated_datetime
-                        c['date_used'] = dt.isoformat()
-                        c['date_source'] = source
-                        c['rev'].append([action, log_time])
-                        mdata_dict[new_name] = c
-                        file_eval += 1
-                        file_cnt += 1
+                    c['orig_name'] = new_name
+                    c['new_name'] = new_name
+                    c['prev_name'] = new_name
+                    c['mime_type'] = get_mime_list(new_path)
+                    c['updated_datetime'].update({'meta': updated_datetime[0], 'fs': updated_datetime[1]})
+                    c['date_used'] = dt.isoformat()
+                    c['date_source'] = source
+                    c['rev'].append([log_time, action])
 
-                        gps_id = "gps-" if d['gps'] == "N/A" else "gps+"
-                        msg('updated', f"{updated_datetime['meta']} {updated_datetime['fs']} {gps_id}: {new_name} (existing)")
-                        if convert_remove and c['status'] == "success": 
-                            msg('deleted', f"        : {filename}")
-                            del mdata_dict[filename]
-                            os.remove(old_path)
+                    mdata[group_key].setdefault(new_name, c)
+                    file_eval += 1
+                    file_cnt += 1
 
-                    except Exception as e:
-                        msg('error', f"process_media {filename}: {e}")
+                    gps_id = "gps-" if mdata[group_key][conversion_key]['gps'] == "N/A" else "gps+"
+                    msg('updated', f"{updated_datetime[0]} {updated_datetime[1]} {gps_id}: {new_name} (existing)")
+                    if convert_remove and c['status'] == "success": 
+                        msg('deleted', f"        : {old_name}")
+                        mdata[group_key].pop(conversion_key)
+                        os.remove(old_path)
 
-        mdata_dict = cleanup_media_data(mdata_dict)
-        mdata_list = list(mdata_dict.values())
-        mdata = sorted(mdata_list, key=lambda x: x["new_name"])
+#        mdata_dict = cleanup_media_data(mdata_dict)
+#        mdata_list = list(mdata_dict.values())
+#        mdata = sorted(mdata_list, key=lambda x: x["new_name"])
         with open(os.path.join(root, f"{MEDIA_DATA_FILE}"), 'w') as f:
             json.dump(mdata, f, indent=4)
 

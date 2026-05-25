@@ -1160,12 +1160,11 @@ def process_media(target_input, recurse, adjacent, state_arg, location_arg, desc
         mdata.setdefault('summary', {
             "summary_description": "",
             "root": f"{root}",
-            "year": -1, # 0 for multi-year
-            "images": 0,
-            "videos": 0,
-            "audio": 0,
             "extra_nav_link": "", # applies to SUMMARY_FILE and INDEX_FILE
+            "year": -1, # 0 for multi-year
         })
+        mdata['summary'].update({"images": 0, "videos": 0, "audio": 0, "total": 0})
+
 #        print(f"> mdata['summary']['root']={mdata['summary'].get('root')}")
         last_date, last_source = None, None
         for old_path in sorted(files):
@@ -1304,6 +1303,16 @@ def process_media(target_input, recurse, adjacent, state_arg, location_arg, desc
                 address = f"{l_val.replace('_', ' ').title()}, {s_val.upper()}"
             else:
                 address = "Unknown"
+            mime_type_list = get_mime_list(new_path)
+            if mime_type_list[0] == "image":
+                mdata['summary']['images'] += 1
+                mdata['summary']['total'] += 1
+            elif mime_type_list[0] == "video":
+                mdata['summary']['videos'] += 1
+                mdata['summary']['total'] += 1
+            elif mime_type_list[0] == "audio":
+                mdata['summary']['audio'] += 1
+                mdata['summary']['total'] += 1
 
             if not found_media_key:
                 d = create_default_entry()
@@ -1311,7 +1320,6 @@ def process_media(target_input, recurse, adjacent, state_arg, location_arg, desc
             else:
                 d = copy.deepcopy(mdata[group_key].get(old_name))
                 old_key = old_name # in case it needs deleting by convert_remove
-
 
             d.update({"new_name": new_name})
             if renamed: d.update({'prev_name': old_name})
@@ -1321,7 +1329,7 @@ def process_media(target_input, recurse, adjacent, state_arg, location_arg, desc
                 d.update({'first_year': LOCATION_TAG[l_val]['begin'], 'last_year': LOCATION_TAG[l_val]['end']})
             d.update({"year": file_year, "state": s_val, "location": l_val, "description": d_val})
             d.update({"gps": gps_str})
-            d.update({"mime_type": get_mime_list(new_path)})
+            d.update({"mime_type": mime_type_list})
             d["updated_datetime"].update({"meta": updated_datetime[0], "fs": updated_datetime[1]})
             d.update({"date_used": dt.isoformat()})
             d.update({"date_source": source})
@@ -1329,7 +1337,6 @@ def process_media(target_input, recurse, adjacent, state_arg, location_arg, desc
             if not d.get('map_style'): d.update({'map_style': map_style})
             if ext in ext_videos or ext in ext_sounds:
                 d.update({'duration': get_av_duration(new_name), 'cover_name': f"{tagged_base}.jpg"})
-## TODO: OVERWRITES the rev key list instead of appending action
             d['rev'].append([log_time, action])
 
             if not mdata[group_key].get('address'): mdata[group_key].update({'address': address})
@@ -1418,13 +1425,24 @@ def process_media(target_input, recurse, adjacent, state_arg, location_arg, desc
 
                     msg('', f"{new_name}")
 
+                    mime_type_list = get_mime_list(new_path)
+                    if mime_type_list[0] == "image":
+                        mdata['summary']['images'] += 1
+                        mdata['summary']['total'] += 1
+                    elif mime_type_list[0] == "video":
+                        mdata['summary']['videos'] += 1
+                        mdata['summary']['total'] += 1
+                    elif mime_type_list[0] == "audio":
+                        mdata['summary']['audio'] += 1
+                        mdata['summary']['total'] += 1
+
                     # Make the converted file have the same time as the source file
                     updated_datetime = set_datetime(new_path, dt)
 
                     c['orig_name'] = new_name
                     c['new_name'] = new_name
                     c['prev_name'] = new_name
-                    c['mime_type'] = get_mime_list(new_path)
+                    c['mime_type'] = mime_type_list
                     c['updated_datetime'].update({'meta': updated_datetime[0], 'fs': updated_datetime[1]})
                     c['date_used'] = dt.isoformat()
                     c['date_source'] = source

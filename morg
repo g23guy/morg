@@ -896,10 +896,10 @@ def create_index(target, recurse, verbose):
             msg('error', f"File not found - {MEDIA_DATA_FILE}, run 'morg .' first")
             return
 
-        year = mdata[0].get('year')
-        last_year = year - 1
-        next_year = year + 1
-        title = f"Media Gallery {year}"
+        summary_year = mdata['summary'].get('year')
+        year = f" {summary_year}" if summary_year > 0 else ""
+
+        title = f"Media Gallery{year}"
         nav_str = get_navigation_str('gallery', root, mdata)
         with open(index_path, 'w') as f:
             f.write(f"""<!DOCTYPE html>
@@ -915,73 +915,82 @@ def create_index(target, recurse, verbose):
     <h4 style="text-align:center;">{nav_str}</h4>
     <div class="gallery-grid">
 """)
-            for entry in mdata:
-                media_type = entry['mime_type'][0]
-                mime_type = '/'.join(entry['mime_type'])
-                if not os.path.exists(entry['new_name']): continue
-                if media_type == "image":
-                    f.write(f"""        <!-- Image Item -->
-        <div class="gallery-item">
-            <div class="media-container">
-                <a href="{entry['new_name']}" target="{entry['new_name']}" style="width:100%; height:100%;">
-                    <img src="{entry['new_name']}" alt="{entry['new_name']}">
-                </a>
-            </div>
-            <div class="content-box">
-                <div class="link-group">
-                    <a href="{entry['group_name']}">Details</a>
-                    <a href="{entry['new_name']}" target="{entry['new_name']}">Photo</a>
-<!-- gallery_description -->{entry['gallery_description']}
+            for group_key in mdata.keys():
+                if group_key.startswith("summary"): continue
+                group_name = mdata[group_key].get('group_name')
+                for media_key in mdata[group_key].keys():
+                    ext = os.path.splitext(media_key)[-1].lower()
+                    if not ext in ext_all: continue
+                    media_type_list = mdata[group_key][media_key].get('mime_type')
+                    media_type = media_type_list[0]
+                    mime_type = '/'.join(media_type_list)
+                    new_name = mdata[group_key][media_key].get('new_name')
+                    cover_name = mdata[group_key][media_key].get('cover_name')
+                    gallery_description = mdata[group_key][media_key].get('gallery_description')
+                    if not os.path.exists(new_name): continue
+                    if media_type == "image":
+                        f.write(f"""        <!-- Image Item -->
+            <div class="gallery-item">
+                <div class="media-container">
+                    <a href="{new_name}" target="{new_name}" style="width:100%; height:100%;">
+                        <img src="{new_name}" alt="{new_name}">
+                    </a>
+                </div>
+                <div class="content-box">
+                    <div class="link-group">
+                        <a href="{group_name}">Details</a>
+                        <a href="{new_name}" target="{new_name}">Photo</a>
+    <!-- gallery_description -->{gallery_description}
+                    </div>
                 </div>
             </div>
-        </div>
-""")
-                elif media_type == "video":
-                    photo_link = f"""
-                    <a href="{entry['cover_name']}" target="{entry['cover_name']}">Photo</a>""" if entry['cover_name'] else ""
-                    f.write(f"""        <!-- Video Item -->
-        <div class="gallery-item">
-            <div class="media-container">
-                <video controls poster="{entry['cover_name']}" preload="none">
-                    <source src="{entry['new_name']}" type="{mime_type}">
-                    Your browser does not support the video tag.
-                </video>
-            </div>
-            <div class="content-box">
-                <div class="link-group">
-                    <a href="{entry['group_name']}">Details</a>{photo_link}
-                    <a href="{entry['new_name']}" target="{entry['new_name']}">Video</a>
-<!-- gallery_description -->{entry['gallery_description']}
+    """)
+                    elif media_type == "video":
+                        photo_link = f"""
+                        <a href="{cover_name}" target="{cover_name}">Photo</a>""" if cover_name else ""
+                        f.write(f"""        <!-- Video Item -->
+            <div class="gallery-item">
+                <div class="media-container">
+                    <video controls poster="{cover_name}" preload="none">
+                        <source src="{new_name}" type="{mime_type}">
+                        Your browser does not support the video tag.
+                    </video>
+                </div>
+                <div class="content-box">
+                    <div class="link-group">
+                        <a href="{group_name}">Details</a>{photo_link}
+                        <a href="{new_name}" target="{new_name}">Video</a>
+    <!-- gallery_description -->{gallery_description}
+                    </div>
                 </div>
             </div>
-        </div>
-""")
-                elif media_type == "audio":
-                    photo_link = f"""
-                    <a href="{entry['cover_name']}" target="{entry['cover_name']}">Photo</a>""" if entry['cover_name'] else ""
-                    f.write(f"""        <!-- Audio Item -->
-        <div class="gallery-item">
-            <div class="media-container">
-                <!-- Using song1.jpg as a visual overlay wrapper for the audio player -->
-                <div class="audio-bg" style="background-image: url('{entry['cover_name']}');">
-                    <audio controls>
-                        <source src="{entry['new_name']}" type="{mime_type}">
-                        Your browser does not support the audio element.
-                    </audio>
+    """)
+                    elif media_type == "audio":
+                        photo_link = f"""
+                        <a href="{cover_name}" target="{cover_name}">Photo</a>""" if cover_name else ""
+                        f.write(f"""        <!-- Audio Item -->
+            <div class="gallery-item">
+                <div class="media-container">
+                    <!-- Using {cover_name} as a visual overlay wrapper for the audio player -->
+                    <div class="audio-bg" style="background-image: url('{cover_name}');">
+                        <audio controls>
+                            <source src="{new_name}" type="{mime_type}">
+                            Your browser does not support the audio element.
+                        </audio>
+                    </div>
+                </div>
+                <div class="content-box">
+                    <div class="link-group">
+                        <a href="{group_name}">Details</a>{photo_link}
+    <!-- gallery_description -->{gallery_description}
+                    </div>
                 </div>
             </div>
-            <div class="content-box">
-                <div class="link-group">
-                    <a href="{entry['group_name']}">Details</a>{photo_link}
-<!-- gallery_description -->{entry['gallery_description']}
-                </div>
-            </div>
-        </div>
-""")
-            f.write(f"""    </div>
-</body>
-</html>
-""")
+    """)
+                f.write(f"""    </div>
+    </body>
+    </html>
+    """)
     print()
 
 def reset_revisions(target, recurse):
@@ -1008,6 +1017,9 @@ def create_summary(target, recurse, verbose):
     for root, files in dir_groups.items():
         msg('dir', root)
         mdata = get_media_data(root)
+        if not mdata:
+            msg('error', f"File not found - {MEDIA_DATA_FILE}, run 'morg .' first")
+            return
         dtnow = datetime.now().strftime('%B %d, %Y')
         summary_year = mdata['summary'].get('year')
         this_year = f" {summary_year}" if summary_year > 0 else ""
@@ -1029,12 +1041,16 @@ def create_summary(target, recurse, verbose):
             sf.write(f"<tr><td>Media Files:</td><td>Images: {mdata['summary'].get('images')}, Videos: {mdata['summary'].get('videos')}, Audio: {mdata['summary'].get('audio')}, TOTAL: {mdata['summary'].get('total')}</td></tr>\n")
             sf.write(f'<tr><td>Organized By:</td><td>Media Organizer, v{SVER}</td></tr>\n')
             sf.write(f'<tr><td>Navigation:</td><td>{nav_str}</td></tr>\n')
-            sf.write(f"</table><br>\n")
+            sf.write(f"</table>\n")
             sf.write(f"""
+<p>
+<!-- summary_description -->{mdata['summary'].get('summary_description')}
+</p><br>
+
 <details>
     <summary style="cursor: pointer; font-weight: bold; color: #0066cc; margin-bottom: 10px;">Detailed Explanation</summary>
 
-    <table>
+    <hr><table>
     <tr><td>Filename Format</td><td><strong>YYYYMMDD-HHMMSS[-State][-Location][-Description](_#).ext</strong></td></tr>
     <td>YYYYMMDD-HHMMSS</td><td>Mandatory year, month, day, hour, minute, second the picture was taken</td></tr>
     <td>[-State]</td><td>Optional state tag</td></tr>

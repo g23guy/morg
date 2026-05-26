@@ -196,13 +196,13 @@ def msg(action, msg, flush=False):
         print(f"{msg}")
 
 def create_default_entry():
-    entry = {
+    media_entry = {
         "new_name": '', # the new filename being used
         "prev_name": '', # the previous filename used, used to restore last session
         "orig_name": '', # the original filename, used to restore original filenames
         "cover_name": '', # for audio/video file, the .jpg that covers the media
         "media_description": '', # the individual file's description in the group html file
-        "gallery_description": '', # the caption used for a gallery tile
+        "gallery_caption": '', # the caption used for a gallery tile
         "year": 0, # the year of this media file
         "state": '', # state code like ut, ca, vt, etc
         "location": '', # the city or the location code for LOCATION_TAG lookup
@@ -224,7 +224,7 @@ def create_default_entry():
         "status": '', # unused for now
     }
 
-    return entry
+    return media_entry
 
 def get_media_data(path):
     file = f"{path}/{MEDIA_DATA_FILE}"
@@ -234,22 +234,6 @@ def get_media_data(path):
     else:
         data = {}
     return data
-
-def cleanup_media_data(mdata_dict):
-    msg('clean', 'Cleaning up the media data')
-    this_dict = copy.deepcopy(mdata_dict)
-    for key in mdata_dict.keys():
-        filepath = os.path.join(mdata_dict[key]['root'], mdata_dict[key]['new_name'])
-        if not os.path.exists(filepath):
-            del this_dict[key]
-            msg('delete', f"- Deleted key {key}, file not found")
-    for key in mdata_dict.keys():
-        cover = mdata_dict[key]['cover_name']
-        if cover:
-            e = this_dict.pop(cover, None)
-            if e:
-                msg('delete', f"- Deleted cover duplicate {cover}")
-    return this_dict
 
 def get_mime_list(filepath):
     mime_type, _ = mimetypes.guess_type(filepath)
@@ -790,7 +774,8 @@ def save_group_html(group_key, mdata):
     source = "filedata"
     root = mdata['summary'].get('root')
     group_name = mdata[group_key].get('group_name')
-    title = mdata[group_key].get('group_title')
+    header = mdata[group_key].get('group_header')
+    group_title = mdata[group_key].get('group_title')
     loc = mdata[group_key].get('address')
     loc_url = mdata[group_key].get('address_url')
     time_frame = mdata[group_key].get('span')
@@ -806,13 +791,13 @@ def save_group_html(group_key, mdata):
         f.write(f"""<link rel="stylesheet" type="text/css" href="{CSS_FILE_MAIN}">\n""")
         f.write(f"""<meta charset="UTF-8">\n""")
         f.write(f"""<meta name="viewport" content="width=device-width, initial-scale=1.0">\n""")
-        f.write(f"<title>{title}</title></head><body>\n")
-        f.write(f"<h1>Year{this_year}</h1>\n")
+        f.write(f"<title>{group_title}</title></head><body>\n")
+        f.write(f"<h1>{header}</h1>\n")
         if loc_url == "N/A" or loc == "Missing":
             f.write(f"""<h2>{loc}</h2>\n""")
         else:
             f.write(f"""<h2><a href="{loc_url}" target="_blank" rel="noopener noreferrer" style="text-decoration: none;">{loc}</a>{time_frame}</h2>\n""")
-        f.write(f"<h3>Description: {title}</h3>\n")
+        f.write(f"<h3>Description: {group_title}</h3>\n")
         f.write(f"""<h4>{nav_str}</h4>\n\n""")
         f.write(f"""<p>\n<!-- group_description -->{group_description}\n</p>\n\n<table class="main">\n""")
         for media_key in mdata[group_key].keys():
@@ -828,7 +813,7 @@ def save_group_html(group_key, mdata):
             map_style = mdata[group_key][media_key].get('map_style')
             map_url = mdata[group_key][media_key].get('map_url')
             media_description = mdata[group_key][media_key].get('media_description')
-            gallery_description = mdata[group_key][media_key].get('gallery_description')
+            gallery_caption = mdata[group_key][media_key].get('gallery_caption')
 
             if map_style == 1:
                 style_str = "This "
@@ -864,7 +849,10 @@ def save_group_html(group_key, mdata):
                 descriptor_str = f"{map_str}\n"
             else:
                 descriptor_str = '\n'
-            f.write(f"""<tr>\n  <td>{media_str}</td>\n  <td>{descriptor_str}  </td><td>\n<!-- media_description -->{media_description}\n  </td>\n</tr>\n""")
+            if gallery_caption != group_title:
+                f.write(f"""<tr>\n  <td>{media_str}</td>\n  <td>{descriptor_str}  </td><td>\n<!-- media_description -->{gallery_caption}<br>{media_description}\n  </td>\n</tr>\n""")
+            else:
+                f.write(f"""<tr>\n  <td>{media_str}</td>\n  <td>{descriptor_str}  </td><td>\n<!-- media_description -->{media_description}\n  </td>\n</tr>\n""")
         f.write(f"</table>\n\n</body></html>\n")
     msg('', "Done")
 
@@ -901,7 +889,7 @@ def create_index(target, recurse, verbose):
         summary_year = mdata['summary'].get('year')
         year = f" {summary_year}" if summary_year > 0 else ""
 
-        title = f"Media Gallery{year}"
+        header = mdata['summary'].get('gallery_header')
         nav_str = get_navigation_str('gallery', root, mdata)
         with open(index_path, 'w') as f:
             f.write(f"""<!DOCTYPE html>
@@ -910,11 +898,14 @@ def create_index(target, recurse, verbose):
     <link rel="stylesheet" type="text/css" href="{CSS_FILE_GALLERY}">
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>{title}</title>
+    <title>{header}</title>
 </head>
 <body>
-    <h2 style="text-align:center;">{title}</h2>
+    <h2 style="text-align:center;">{header}</h2>
     <h4 style="text-align:center;">{nav_str}</h4>
+<p align="center">
+<!-- summary_description -->{mdata['summary'].get('summary_description')}
+</p><br>
     <div class="gallery-grid">
 """)
             for group_key in mdata.keys():
@@ -932,7 +923,7 @@ def create_index(target, recurse, verbose):
                     map_style = mdata[group_key][media_key].get('map_style')
                     map_url = mdata[group_key][media_key].get('map_url')
                     media_description = mdata[group_key][media_key].get('media_description')
-                    gallery_description = mdata[group_key][media_key].get('gallery_description')
+                    gallery_caption = mdata[group_key][media_key].get('gallery_caption')
 
 
                     if media_type == "image":
@@ -947,7 +938,7 @@ def create_index(target, recurse, verbose):
                     <div class="link-group">
                         <a href="{group_name}">Details</a>
                         <a href="{new_name}" target="{new_name}">Photo</a>
-<!-- gallery_description -->{gallery_description}
+<!-- gallery_caption -->{gallery_caption}
                     </div>
                 </div>
             </div>
@@ -967,7 +958,7 @@ def create_index(target, recurse, verbose):
                     <div class="link-group">
                         <a href="{group_name}">Details</a>{photo_link}
                         <a href="{new_name}" target="{new_name}">Video</a>
-<!-- gallery_description -->{gallery_description}
+<!-- gallery_caption -->{gallery_caption}
                     </div>
                 </div>
             </div>
@@ -989,7 +980,7 @@ def create_index(target, recurse, verbose):
                 <div class="content-box">
                     <div class="link-group">
                         <a href="{group_name}">Details</a>{photo_link}
-<!-- gallery_description -->{gallery_description}
+<!-- gallery_caption -->{gallery_caption}
                     </div>
                 </div>
             </div>
@@ -1028,8 +1019,7 @@ def create_summary(target, recurse, verbose):
             msg('error', f"File not found - {MEDIA_DATA_FILE}, run 'morg .' first")
             return
         dtnow = datetime.now().strftime('%B %d, %Y')
-        summary_year = mdata['summary'].get('year')
-        this_year = f" {summary_year}" if summary_year > 0 else ""
+        header = mdata['summary'].get('summary_header')
         summary_path = os.path.join(root, SUMMARY_FILE)
         nav_str = get_navigation_str('summary', root, mdata)
         html_files = {}
@@ -1037,12 +1027,12 @@ def create_summary(target, recurse, verbose):
         msg('summary', "Writing Summary File")
         with open(summary_path, 'w') as sf:
             sf.write(f'<!DOCTYPE html><html><head><meta name="robots" content="none">\n')
-            sf.write(f'<title>Summary {this_year}</title>\n')
+            sf.write(f'<title>{header}</title>\n')
             sf.write(f"""<link rel="stylesheet" type="text/css" href="style.css">\n""")
             sf.write(f"""<meta charset="UTF-8">\n""")
             sf.write(f"""<meta name="viewport" content="width=device-width, initial-scale=1.0">\n""")
             sf.write(f'</head>\n')
-            sf.write(f'<body><h1 align="center">Summary {this_year}</h1>\n')
+            sf.write(f'<body><h1 align="center">{header}</h1>\n')
             sf.write(f'<center><table><tr><td>Summary Date:</td><td>{dtnow}</td></tr>\n')
             sf.write(f'<tr><td>Summary For:</td><td>{root}</td></tr>\n')
             sf.write(f"<tr><td>Media Files:</td><td>Images: {mdata['summary'].get('images')}, Videos: {mdata['summary'].get('videos')}, Audio: {mdata['summary'].get('audio')}, TOTAL: {mdata['summary'].get('total')}</td></tr>\n")
@@ -1098,7 +1088,7 @@ def create_summary(target, recurse, verbose):
             sf.write(f'</body></html>\n')
         print()
 
-def process_media(target_input, recurse, adjacent, state_arg, location_arg, description_arg, given_date, given_time, time_sequenced, forced, convert, convert_remove, verbose):
+def process_media(target_input, recurse, adjacent, state_arg, location_arg, description_arg, given_date, given_time, time_sequenced, forced, convert, convert_remove, default, verbose):
     notice("Organizing Media Files")
     extensions = ext_all
     overridden = False
@@ -1112,7 +1102,9 @@ def process_media(target_input, recurse, adjacent, state_arg, location_arg, desc
         msg('dir', f"{root}")
         mdata = get_media_data(root)
         mdata.setdefault('summary', {
+            "summary_header": "",
             "summary_description": "",
+            "gallery_header": "",
             "root": f"{root}",
             "extra_nav_link": "", # applies to SUMMARY_FILE and INDEX_FILE
             "year": -1, # 0 for multi-year
@@ -1157,6 +1149,7 @@ def process_media(target_input, recurse, adjacent, state_arg, location_arg, desc
             if not found_group_key:
                 mdata[group_key] = {
                     "group_name": f"{group_key}.html",
+                    "group_header": "",
                     "group_title": group_title,
                     "group_description": "",
                     "address": "",
@@ -1168,6 +1161,8 @@ def process_media(target_input, recurse, adjacent, state_arg, location_arg, desc
 
             s_val = state_arg if state_arg is not None else (match.group(2) if match else (mdata[group_key][old_name].get('state', '') if old_name in mdata[group_key] else ''))
             l_val = location_arg if location_arg is not None else (match.group(3) if match else (mdata[group_key][old_name].get('location', '') if old_name in mdata[group_key] else ''))
+            if default:
+                mdata[group_key].update({'group_title': group_title})
 
             if forced:
                 match = False
@@ -1282,7 +1277,7 @@ def process_media(target_input, recurse, adjacent, state_arg, location_arg, desc
             d.update({"new_name": new_name})
             if renamed: d.update({'prev_name': old_name})
             if not d.get('orig_name'): d.update({'orig_name': old_name})
-            if not d.get('gallery_description'): d.update({'gallery_description': group_title})
+            if not d.get('gallery_caption'): d.update({'gallery_caption': group_title})
             if l_val in LOCATION_TAG:
                 d.update({'first_year': first_year, 'last_year': last_year})
             d.update({"year": file_year, "state": s_val, "location": l_val, "description": d_val})
@@ -1294,7 +1289,13 @@ def process_media(target_input, recurse, adjacent, state_arg, location_arg, desc
             if not d.get('map_url'): d.update({'map_url': map_url})
             if not d.get('map_style'): d.update({'map_style': map_style})
             if ext in ext_videos or ext in ext_sounds:
-                d.update({'duration': get_av_duration(new_name), 'cover_name': f"{tagged_base}.jpg"})
+                cover_name = f"{tagged_base}.jpg"
+                d.update({'duration': get_av_duration(new_name), 'cover_name': cover_name})
+                e = mdata[group_key].pop(cover_name, None)
+                if e:
+                    mdata['summary']['images'] -= 1
+                    mdata['summary']['total'] -= 1
+                    msg('deleted', f"        : {cover_name} -> Cover duplicate")
             d['rev'].append([log_time, action])
 
             if not mdata[group_key].get('address'): mdata[group_key].update({'address': address})
@@ -1306,6 +1307,11 @@ def process_media(target_input, recurse, adjacent, state_arg, location_arg, desc
             else:
                 if group_year != file_year:
                     mdata[group_key].update({'year': 0})
+
+            year_str = f" {group_year}" if group_year > 0 else ""
+            if not mdata[group_key].get('group_header'): mdata[group_key].update({'group_header': f"Year{year_str}"})
+            if default: mdata[group_key].update({'group_header': f"Year{year_str}"})
+
             time_frame = f" <em>({first_year}-{last_year})</em>"
             if first_year == 0:
                 time_frame = ''
@@ -1320,8 +1326,9 @@ def process_media(target_input, recurse, adjacent, state_arg, location_arg, desc
             else:
                 if summary_year != file_year:
                     mdata['summary'].update({'year': 0})
-
             d.update({'status': status})
+
+
             u = {}
             u[new_name] = d
             mdata[group_key].update(u)
@@ -1425,121 +1432,38 @@ def process_media(target_input, recurse, adjacent, state_arg, location_arg, desc
                         mdata[group_key].pop(conversion_key)
                         os.remove(old_path)
 
-#        mdata_dict = cleanup_media_data(mdata_dict)
+
+        summary_year = mdata['summary'].get('year')
+        year_str = f" {summary_year}" if summary_year > 0 else ""
+        if not mdata['summary'].get('summary_header'): mdata['summary'].update({'summary_header': f"Summary{year_str}"})
+        if not mdata['summary'].get('gallery_header'): mdata['summary'].update({'gallery_header': f"Media Gallery{year_str}"})
+        if default:
+            mdata['summary'].update({'summary_header': f"Summary{year_str}"})
+            mdata['summary'].update({'gallery_header': f"Media Gallery{year_str}"})
+        
+        missing_keys = []
+        for group_key in mdata.keys():
+            for media_key in mdata[group_key].keys():
+                ext = os.path.splitext(media_key)[-1].lower()
+                if not ext in ext_all: continue
+                new_name = mdata[group_key][media_key].get('new_name')
+                filename = os.path.join(root, new_name)
+                if not os.path.exists(filename):
+                    missing_keys.append(media_key)
+
+        for key in missing_keys:
+            mdata[group_key].pop(key, None)
+            msg('deleted', f"        : {key} -> File not found")
+
 #        mdata_list = list(mdata_dict.values())
 #        mdata = sorted(mdata_list, key=lambda x: x["new_name"])
-        with open(os.path.join(root, f"{MEDIA_DATA_FILE}"), 'w') as f:
+        backup_file = os.path.join(root, f"{MEDIA_DATA_FILE}-backup-{log_time}.json")
+        data_file = os.path.join(root, f"{MEDIA_DATA_FILE}")
+        os.rename(data_file, backup_file)
+        with open(data_file, 'w') as f:
             json.dump(mdata, f, indent=4)
 
     msg('summary', f"Processed {file_cnt} matching files out of {file_eval} found\n")
-
-def finalize_descriptions(target, recurse):
-    notice("Extracting Descriptions from HTML Files")
-    recurse = False # unsupported for now
-    # Regex pattern to match each item block from <!-- * Item --> up to the </div> enclosing its link-group
-    item_pattern = re.compile(
-        r"<!--\s*(Image|Video|Audio)\s*Item\s*-->.*?"
-        r"<!--\s*gallery_description\s*-->(.*?)(?=</div>)", 
-        re.DOTALL
-    )
-
-    # Individual regex patterns to find the specific keys inside each block type
-    img_key_pattern = re.compile(r'<img\s+[^>]*src=["\']([^"\']+)["\']')
-    source_key_pattern = re.compile(r'<source\s+[^>]*src=["\']([^"\']+)["\']')
-
-    # Regex to find the text directly following the group_description comment inside a <p> tag
-    group_desc_regex = re.compile(
-        r"<p>\s*<!--\s*group_description\s*-->\s*(.*?)\s*</p>", re.DOTALL
-    )
-
-    # Regex to find each table row and extract the href key and media description
-    row_regex = re.compile(r"<tr>\s*<td>.*?</td>.*?</tr>", re.DOTALL)
-    href_regex = re.compile(r'<td>\s*<a\s+[^>]*href="([^"]+)"', re.DOTALL)
-    media_desc_regex = re.compile(
-        r"<!--\s*media_description\s*-->\s*(.*?)\s*</td>", re.DOTALL
-    )
-
-    title_regex = re.compile(
-        r"<title>(.*?)</title>"
-    )
-
-    dir_groups = get_dir_groups(target, recurse)
-    for root, files in dir_groups.items():
-        msg('dir', root)
-        action = "finalized"
-        mdata = get_media_data(root)
-        mdata_dict = {item['new_name']: item for item in mdata}
-
-        # Extract <!-- gallery_description --> from index.html
-        msg('gallery', f"Extracting gallery descriptions from {INDEX_FILE}")
-        with open(INDEX_FILE, "r", encoding="utf-8") as f:
-            html_content = f.read()
-
-        # Find all blocks matching our criteria
-        for match in item_pattern.finditer(html_content):
-            item_type = match.group(1)
-            description = match.group(2).strip()
-            block_text = match.group(0)
-            
-            key = None
-            if item_type == "Image":
-                key_match = img_key_pattern.search(block_text)
-                if key_match:
-                    key = key_match.group(1)
-            elif item_type in ("Video", "Audio"):
-                key_match = source_key_pattern.search(block_text)
-                if key_match:
-                    key = key_match.group(1)
-                    
-            # Verify the key exists in your dictionary before writing data
-            if key and key in mdata_dict:
-                mdata_dict[key]['gallery_description'] = description
-                mdata_dict[key]['rev'].append([action, log_time])
-
-        # Extract <!-- group_description --> and <!-- media_description --> from group-*.html
-        html_files = glob.glob("group-*.html")
-
-        for file_path in html_files:
-            msg('group', f"Extracting title, group, and media descriptions from {file_path}")
-            with open(file_path, "r", encoding="utf-8") as f:
-                content = f.read()
-
-            # 1. Extract title
-            title_match = title_regex.search(content)
-            title_description = title_match.group(1).strip() if title_match else ""
-
-            # 2. Extract group_description
-            group_match = group_desc_regex.search(content)
-            group_description = group_match.group(1).strip() if group_match else ""
-
-#            msg('debug', f">  file_path={file_path}, group_description={group_description}, title={title_description}")
-            # 3. Extract table rows for media keys and descriptions
-            for row in row_regex.finditer(content):
-                row_text = row.group(0)
-
-                # Get the key from the first href
-                href_match = href_regex.search(row_text)
-                if not href_match: continue
-                key = href_match.group(1)
-
-                # Extract the media description text following the comment
-                media_match = media_desc_regex.search(row_text)
-                media_description = media_match.group(1).strip() if media_match else ""
-#                msg('debug', f">  key={key}, media_description={media_description}")
-
-                try:
-                    # 3. Save both extracted values into the dictionary
-                    mdata_dict[key]["title"] = title_description
-                    mdata_dict[key]["group_description"] = group_description
-                    mdata_dict[key]["media_description"] = media_description
-                except Exception as e:
-                    msg('error', f"finalize_descriptions,key,{file_path}: {e}")
-                    pass
-
-        mdata = list(mdata_dict.values())
-        with open(os.path.join(root, f"{MEDIA_DATA_FILE}"), 'w') as f:
-            json.dump(mdata, f, indent=4)
-        print()
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(
@@ -1569,12 +1493,10 @@ if __name__ == "__main__":
     parser.add_argument("-n", "--reset-revisions", action="store_true", help="Clear the revision history retaining the first and last entries")
     parser.add_argument("-m", "--summary", action="store_true", help=f"Create the current {SUMMARY_FILE}")
     parser.add_argument("-o", "--original", action="store_true", help="Restore original filenames and delete logs")
-    parser.add_argument("-p", "--template", action="store_true", help="Creates a description template file for the file given")
-    parser.add_argument("-g", "--log", action="store_true", help="Display latest JSON log summary")
-    parser.add_argument("-G", "--all-logs", action="store_true", help="Display latest JSON log summary in all subdirs")
-    parser.add_argument("-i", "--index", action="store_true", help="Creates an index.html for the directory gallery of images")
+    parser.add_argument("-p", "--template", action="store_true", help="Creates a group description template file for the file given")
+    parser.add_argument("-i", "--index", action="store_true", help=f"Creates an {INDEX_FILE} for the directory gallery of images")
     parser.add_argument("-t", "--time-sequenced", action="store_true", help="Use -T/--hhmmss time if given or the first file's time, and increment it for sebsequent files")
-    parser.add_argument("-z", "--finalize", action="store_true", help="Extracts final descriptions and edits to store them in the log")
+    parser.add_argument("-R", "--default", action="store_true", help="Resets the headers and titles back to default values")
     parser.add_argument("-v", "--verbose", action="store_true", help="Enables verbose output")
     parser.add_argument("-s", "--state", help="State tag, Unsupported characters [-._]")
     parser.add_argument("-l", "--location", help="Location tag, Unsupported characters [-.]")
@@ -1595,19 +1517,16 @@ if __name__ == "__main__":
     target_input = normalize_files_input(args.file)
     if args.convert_remove: args.convert = True 
 
-    if args.log: display_logs(target_input, args.verbose, all_subdirs=False)
-    elif args.all_logs: display_logs(target_input, args.verbose, all_subdirs=True)
-    elif args.template: create_group_templates(target_input, args.recurse)
-    elif args.reset_revisions: reset_revisions(target_input, args.recurse)
-    elif args.reverse: reverse_last_session(target_input, args.recurse)
-    elif args.original: restore_original_names(target_input, args.recurse)
-    elif args.summary: create_summary(target_input, args.recurse, args.verbose)
-    elif args.index: create_index(target_input, args.recurse, args.verbose)
-    elif args.build:
+    if args.build:
         create_summary(target_input, args.recurse, args.verbose)
         create_group_templates(target_input, args.recurse)
         create_index(target_input, args.recurse, args.verbose)
-    elif args.finalize: finalize_descriptions(target_input, args.recurse)
-    else: process_media(target_input, args.recurse, args.adjacent, args.state, args.location, args.description, args.yyyymmdd, args.hhmmss, args.time_sequenced, args.force, args.convert, args.convert_remove, args.verbose)
+    elif args.summary: create_summary(target_input, args.recurse, args.verbose)
+    elif args.template: create_group_templates(target_input, args.recurse)
+    elif args.index: create_index(target_input, args.recurse, args.verbose)
+    elif args.reset_revisions: reset_revisions(target_input, args.recurse)
+    elif args.reverse: reverse_last_session(target_input, args.recurse)
+    elif args.original: restore_original_names(target_input, args.recurse)
+    else: process_media(target_input, args.recurse, args.adjacent, args.state, args.location, args.description, args.yyyymmdd, args.hhmmss, args.time_sequenced, args.force, args.convert, args.convert_remove, args.default, args.verbose)
     
 

@@ -368,9 +368,10 @@ def override_dt(dt_old, given_date, given_time):
     else:
         new_time = datetime.strftime(dt_old, "%H%M%S")
 
-    dt_new_str = new_date + "-" + new_time
+    dt_new_str = f"{new_date}-{new_time}"
     dt_new = datetime.strptime(dt_new_str, "%Y%m%d-%H%M%S")
-    return dt_new, "override"
+#    print(f">> override_dt: dt type: {type(dt_new)}, dt value: {dt_new}")
+    return dt_new
 
 def date_digits(value):
     num = 8
@@ -542,10 +543,13 @@ def get_av_duration(file):
         # 1. Split at '.' to remove microseconds ("0:00:57")
         # 2. Split by ':' and take the last two segments
         time_parts = output.split('.')[0].split(':')
-        mm = time_parts[-2].zfill(2) # Pad with zero if needed
+        hh = time_parts[-3].zfill(2) # Pad with zero if needed
+        mm = time_parts[-2].zfill(2)
         ss = time_parts[-1].zfill(2)
-
-        extracted = f"{mm}:{ss}"
+        if hh != "00":
+            extracted = f"{hh}:{mm}:{ss}"
+        else:
+            extracted = f"{mm}:{ss}"
 
     except subprocess.CalledProcessError as e:
         msg('error', f"get_av_duration: ffprobe {file}: {e}")
@@ -793,7 +797,7 @@ def save_group_html(group_key, mdata):
         f.write(f"""<meta name="viewport" content="width=device-width, initial-scale=1.0">\n""")
         f.write(f"<title>{group_title}</title></head><body>\n")
         f.write(f"<h1>{header}</h1>\n")
-        if loc_url == "N/A" or loc == "Missing":
+        if loc_url == "N/A" or loc == "Missing" or loc_url == "":
             f.write(f"""<h2>{loc}</h2>\n""")
         else:
             f.write(f"""<h2><a href="{loc_url}" target="_blank" rel="noopener noreferrer" style="text-decoration: none;">{loc}</a>{time_frame}</h2>\n""")
@@ -1001,11 +1005,15 @@ def reset_revisions(target, recurse):
         if not mdata:
             msg('error', f"File not found - {MEDIA_DATA_FILE}, run 'morg .' first")
             return
-        mdata_dict = {item['new_name']: item for item in mdata}
-        for key in mdata_dict.keys():
-            mdata_dict[key]['rev'] = [mdata_dict[key]['rev'][0], mdata_dict[key]['rev'][-1]]
-        mdata = list(mdata_dict.values())
-        with open(os.path.join(root, f"{MEDIA_DATA_FILE}"), 'w') as f:
+        for group_key in mdata.keys():
+            for media_key in mdata[group_key].keys():
+                ext = os.path.splitext(media_key)[-1].lower()
+                if not ext in ext_all: continue
+                mdata[group_key][media_key]['rev'] = [mdata[group_key][media_key]['rev'][0], mdata[group_key][media_key]['rev'][-1]]
+        backup_file = os.path.join(root, f"{MEDIA_DATA_FILE}-backup-{log_time}.json")
+        data_file = os.path.join(root, f"{MEDIA_DATA_FILE}")
+        if os.path.exists(data_file): os.rename(data_file, backup_file)
+        with open(data_file, 'w') as f:
             json.dump(mdata, f, indent=4)
 
 def create_summary(target, recurse, verbose):
@@ -1171,25 +1179,23 @@ def process_media(target_input, recurse, adjacent, state_arg, location_arg, desc
                 if match:
                     if overridden:
                         dt = datetime.strptime(match.group(1), "%Y%m%d-%H%M%S")
-                        dt, source = override_dt(dt, given_date, given_time)
+                        dt, source = override_dt(dt, given_date, given_time), "override"
                     else:
                         dt, source = datetime.strptime(match.group(1), "%Y%m%d-%H%M%S"), "existing"
                 else:
                     if ext not in extensions: continue
+                    dt, source = get_datetime(old_path)
                     if overridden:
-                        dt, source = override_dt(dt, given_date, given_time)
-                    else:
-                        dt, source = get_datetime(old_path)
+                        dt, source = override_dt(dt, given_date, given_time), "override"
 
                 if adjacent and source == "modified" and last_source in ["creation", "adjacent"]:
                     if overridden:
-                        dt, source = override_dt(dt, given_date, given_time)
+                        dt, source = override_dt(dt, given_date, given_time), "override"
                     else:
                         dt, source = last_date, "adjacent"
             except Exception as e:
                 msg('error', f"process_media,dt/source {old_name}: {e}")
                 continue
-#            print(f">>> source={source}, dt={dt}")
 
             if (ext in ('.jpeg')):
                 target_ext = '.jpg'
@@ -1230,7 +1236,7 @@ def process_media(target_input, recurse, adjacent, state_arg, location_arg, desc
                     action = "renamed"
                     os.rename(old_path, new_path)
                 else:
-                    action = "reviewed"
+                    action = "default" if default else "reviewed"
                     updated_datetime = set_datetime(new_path, dt)
 
             except Exception as e:
@@ -1459,7 +1465,7 @@ def process_media(target_input, recurse, adjacent, state_arg, location_arg, desc
 #        mdata = sorted(mdata_list, key=lambda x: x["new_name"])
         backup_file = os.path.join(root, f"{MEDIA_DATA_FILE}-backup-{log_time}.json")
         data_file = os.path.join(root, f"{MEDIA_DATA_FILE}")
-        os.rename(data_file, backup_file)
+        if os.path.exists(data_file): os.rename(data_file, backup_file)
         with open(data_file, 'w') as f:
             json.dump(mdata, f, indent=4)
 

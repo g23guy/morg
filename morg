@@ -126,8 +126,10 @@ URL_BASE = "https://www.google.com/maps"
 SUMMARY_FILE = '0-README.html'
 CSS_FILE_MAIN = "style-main.css"
 CSS_FILE_GALLERY = "style-gallery.css"
+CSS_FILE_THUMBNAILS = "style-thumbnails.css"
 INDEX_FILE = "index.html"
 MEDIA_DATA_FILE = "mediadata.json"
+THUMBNAIL_FILE = "thumbnails.html"
 log_time = datetime.now().strftime('%Y%m%d_%H%M%S')
 
 # Setup HEIF and MIME
@@ -556,6 +558,27 @@ def get_av_duration(file):
 
     return extracted
 
+def reset_revisions(target, recurse):
+    notice("Resetting the Revision Histories")
+    dir_groups = get_dir_groups(target, recurse)
+
+    for root, files in dir_groups.items():
+        msg('dir', root)
+        mdata = get_media_data(root)
+        if not mdata:
+            msg('error', f"File not found - {MEDIA_DATA_FILE}, run 'morg .' first")
+            return
+        for group_key in mdata.keys():
+            for media_key in mdata[group_key].keys():
+                ext = os.path.splitext(media_key)[-1].lower()
+                if not ext in ext_all: continue
+                mdata[group_key][media_key]['rev'] = [mdata[group_key][media_key]['rev'][0], mdata[group_key][media_key]['rev'][-1]]
+        backup_file = os.path.join(root, f"{MEDIA_DATA_FILE}-backup-{log_time}.json")
+        data_file = os.path.join(root, f"{MEDIA_DATA_FILE}")
+        if os.path.exists(data_file): os.rename(data_file, backup_file)
+        with open(data_file, 'w') as f:
+            json.dump(mdata, f, indent=4)
+
 def create_style_css(root):
     css_name = CSS_FILE_MAIN
     css_path = f"{root}/{css_name}"
@@ -643,6 +666,81 @@ body {{
     .gallery {{
         grid-template-columns: 1fr;
     }}
+}}
+\n""")
+
+def create_thumbnails_css(root):
+    css_name = CSS_FILE_THUMBNAILS
+    css_path = f"{root}/{css_name}"
+    msg('css', f"Creating {css_name}")
+    with open(css_path, 'w') as f:
+        f.write(f"""/* Style for Thumbnails */
+* {{
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+}}
+
+body {{
+    font-family: sans-serif;
+    background-color: #f0f0f0;
+    padding: 16px;
+}}
+
+/* Responsive Grid Container */
+.photo-grid {{
+    display: grid;
+    gap: 8px;
+    width: 100%;
+    max-width: 1200px;
+    margin: 0 auto;
+    /* Auto-fit creates columns dynamically based on available width */
+    grid-template-columns: repeat(auto-fit, minmax(112px, 1fr));
+}}
+
+/* Media queries to optimize column sizes for different devices */
+@media (max-width: 480px) {{
+    .photo-grid {{
+        /* Smaller minimum size on mobile allows 2 columns on small screens */
+        grid-template-columns: repeat(auto-fit, minmax(98px, 1fr));
+        gap: 6px;
+    }}
+}}
+
+@media (min-width: 768px) {{
+    .photo-grid {{
+        /* Larger minimum size on tablets and desktops */
+        grid-template-columns: repeat(auto-fit, minmax(135px, 1fr));
+    }}
+}}
+
+/* Grid Item Forced to 1x1 Aspect Ratio */
+.grid-item {{
+    position: relative;
+    width: 100%;
+    /* Padding-top matches width to force a perfect 1x1 square */
+    padding-top: 100%; 
+    background-color: #ddd;
+    overflow: hidden;
+    border-radius: 6px;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+}}
+
+/* Image Fill and Center */
+.grid-item img {{
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    /* object-fit: cover crops the image into a square without distortion */
+    object-fit: cover; 
+    transition: transform 0.2s ease;
+}}
+
+/* Hover Effect */
+.grid-item:hover img {{
+    transform: scale(1.05);
 }}
 \n""")
 
@@ -755,6 +853,7 @@ def get_navigation_str(key, root, mdata):
         nav_str = f"""[ 
             <a href="{SUMMARY_FILE}" class="plain">Summary</a> | 
             <a href="{INDEX_FILE}" class="plain">Gallery</a> | 
+            <a href="{THUMBNAIL_FILE}" class="plain">Thumbnails</a> | 
             {nav_top}{nav_years}{mdata[key].get('extra_nav_link')}
             ]"""
     elif key == 'gallery':
@@ -762,12 +861,22 @@ def get_navigation_str(key, root, mdata):
         nav_str = f"""[ 
             <a href="{SUMMARY_FILE}" class="plain">Summary</a> | 
             Gallery | 
+            <a href="{THUMBNAIL_FILE}" class="plain">Thumbnails</a> | 
+            {nav_top}{nav_years}{mdata[key].get('extra_nav_link')}
+            ]"""
+    elif key == 'thumbnails':
+        key = 'summary'
+        nav_str = f"""[ 
+            <a href="{SUMMARY_FILE}" class="plain">Summary</a> | 
+            <a href="{INDEX_FILE}" class="plain">Gallery</a> | 
+            Thumbnails | 
             {nav_top}{nav_years}{mdata[key].get('extra_nav_link')}
             ]"""
     elif key == 'summary':
         nav_str = f"""[ 
             Summary | 
             <a href="{INDEX_FILE}" class="plain">Gallery</a> | 
+            <a href="{THUMBNAIL_FILE}" class="plain">Thumbnails</a> | 
             {nav_top}{nav_years}{mdata[key].get('extra_nav_link')}
             ]"""
 
@@ -854,9 +963,9 @@ def save_group_html(group_key, mdata):
             else:
                 descriptor_str = '\n'
             if gallery_caption != group_title:
-                f.write(f"""<tr>\n  <td>{media_str}</td>\n  <td>{descriptor_str}  </td><td>\n<!-- media_description -->{gallery_caption}<br>{media_description}\n  </td>\n</tr>\n""")
+                f.write(f"""<tr id="{new_name}">\n  <td>{media_str}</td>\n  <td>{descriptor_str}  </td><td>\n<!-- media_description -->{gallery_caption}<br>{media_description}\n  </td>\n</tr>\n""")
             else:
-                f.write(f"""<tr>\n  <td>{media_str}</td>\n  <td>{descriptor_str}  </td><td>\n<!-- media_description -->{media_description}\n  </td>\n</tr>\n""")
+                f.write(f"""<tr id="{new_name}">\n  <td>{media_str}</td>\n  <td>{descriptor_str}  </td><td>\n<!-- media_description -->{media_description}\n  </td>\n</tr>\n""")
         f.write(f"</table>\n\n</body></html>\n")
     msg('', "Done")
 
@@ -874,6 +983,56 @@ def create_group_templates(target, recurse):
         for group_key in mdata.keys():
             if group_key.startswith("summary"): continue
             save_group_html(group_key, mdata)
+    print()
+
+def create_thumbnails(target, recurse, verbose):
+    notice("Creating Thumbnails")
+    index_name = THUMBNAIL_FILE
+    index_path = index_name
+
+    dir_groups = get_dir_groups(target, recurse)
+    for root, files in dir_groups.items():
+        msg('dir', root)
+        create_thumbnails_css(root)
+        mdata = get_media_data(root)
+        if not mdata:
+            msg('error', f"File not found - {MEDIA_DATA_FILE}, run 'morg .' first")
+            return
+
+        header = mdata['summary'].get('gallery_header')
+        nav_str = get_navigation_str('thumbnails', root, mdata)
+        with open(index_path, 'w') as f:
+            f.write(f"""<!DOCTYPE html>
+<html lang="en">
+<head>
+    <link rel="stylesheet" type="text/css" href="{CSS_FILE_THUMBNAILS}">
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{header}</title>
+</head>
+<body>
+    <h2 style="text-align:center;">{header}</h2>
+    <h4 style="text-align:center;">{nav_str}</h4>
+<p align="center">
+<!-- summary_description -->{mdata['summary'].get('summary_description')}
+</p><br>
+    <div class="photo-grid">
+""")
+            for group_key in mdata.keys():
+                if group_key.startswith("summary"): continue
+                group_name = mdata[group_key].get('group_name')
+                for media_key in mdata[group_key].keys():
+                    ext = os.path.splitext(media_key)[-1].lower()
+                    if not ext in ext_all: continue
+                    new_name = mdata[group_key][media_key].get('new_name')
+                    if not os.path.exists(new_name): continue
+
+                    f.write(f"""        <div class="grid-item"><a href="{group_name}#{new_name}"><img src="{new_name}"></a></div>\n""")
+
+            f.write(f"""    </div>
+</body>
+</html>
+""")
     print()
 
 def create_index(target, recurse, verbose):
@@ -940,7 +1099,7 @@ def create_index(target, recurse, verbose):
                 </div>
                 <div class="content-box">
                     <div class="link-group">
-                        <a href="{group_name}">Details</a>
+                        <a href="{group_name}#{new_name}">Details</a>
                         <a href="{new_name}" target="{new_name}">Photo</a>
 <!-- gallery_caption -->{gallery_caption}
                     </div>
@@ -994,27 +1153,6 @@ def create_index(target, recurse, verbose):
         </html>
         """)
     print()
-
-def reset_revisions(target, recurse):
-    notice("Resetting the Revision Histories")
-    dir_groups = get_dir_groups(target, recurse)
-
-    for root, files in dir_groups.items():
-        msg('dir', root)
-        mdata = get_media_data(root)
-        if not mdata:
-            msg('error', f"File not found - {MEDIA_DATA_FILE}, run 'morg .' first")
-            return
-        for group_key in mdata.keys():
-            for media_key in mdata[group_key].keys():
-                ext = os.path.splitext(media_key)[-1].lower()
-                if not ext in ext_all: continue
-                mdata[group_key][media_key]['rev'] = [mdata[group_key][media_key]['rev'][0], mdata[group_key][media_key]['rev'][-1]]
-        backup_file = os.path.join(root, f"{MEDIA_DATA_FILE}-backup-{log_time}.json")
-        data_file = os.path.join(root, f"{MEDIA_DATA_FILE}")
-        if os.path.exists(data_file): os.rename(data_file, backup_file)
-        with open(data_file, 'w') as f:
-            json.dump(mdata, f, indent=4)
 
 def create_summary(target, recurse, verbose):
     notice("Creating Summary File")
@@ -1529,7 +1667,7 @@ if __name__ == "__main__":
     )
     parser.add_argument("file", nargs='+', help="Target folder or file(s) (e.g. /media/*.jpg)")
     parser.add_argument("-a", "--adjacent", action="store_true", help="Adjacent date logic")
-    parser.add_argument("-b", "--build", action="store_true", help="Build the directory web with: template > index > modified")
+    parser.add_argument("-b", "--build", action="store_true", help="Build the directory web with: summary > template > thumbnails > index")
     parser.add_argument("-c", "--convert", action="store_true", help="Convert " + ext_image_convert_str + " to jpg, and " + ext_video_convert_str + " to mp4. Converted files inherit source file data.")
     parser.add_argument("-C", "--convert-remove", action="store_true", help="Same as --convert and deletes the originals")
     parser.add_argument("-r", "--recurse", action="store_true", default=False, help="Recurse subdirs")
@@ -1539,6 +1677,7 @@ if __name__ == "__main__":
     parser.add_argument("-m", "--summary", action="store_true", help=f"Create the current {SUMMARY_FILE}")
     parser.add_argument("-o", "--original", action="store_true", help="Restore original filenames and delete logs")
     parser.add_argument("-p", "--template", action="store_true", help="Creates a group description template file for the file given")
+    parser.add_argument("-u", "--thumbnails", action="store_true", help=f"Creates a {THUMBNAIL_FILE} file")
     parser.add_argument("-i", "--index", action="store_true", help=f"Creates an {INDEX_FILE} for the directory gallery of images")
     parser.add_argument("-t", "--time-sequenced", action="store_true", help="Use -T/--hhmmss time if given or the first file's time, and increment it for sebsequent files")
     parser.add_argument("-R", "--default", action="store_true", help="Resets the headers and titles back to default values")
@@ -1565,9 +1704,11 @@ if __name__ == "__main__":
     if args.build:
         create_summary(target_input, args.recurse, args.verbose)
         create_group_templates(target_input, args.recurse)
+        create_thumbnails(target_input, args.recurse, args.verbose)
         create_index(target_input, args.recurse, args.verbose)
     elif args.summary: create_summary(target_input, args.recurse, args.verbose)
     elif args.template: create_group_templates(target_input, args.recurse)
+    elif args.thumbnails: create_thumbnails(target_input, args.recurse, args.verbose)
     elif args.index: create_index(target_input, args.recurse, args.verbose)
     elif args.reset_revisions: reset_revisions(target_input, args.recurse)
     elif args.reverse: reverse_last_session(target_input, args.recurse)

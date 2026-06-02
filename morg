@@ -1297,7 +1297,7 @@ def process_media(target_input, recurse, adjacent, state_arg, location_arg, desc
                     found_group_key = True
                     found_media_key = True
                     break
-                    
+            old_group_key = group_key
             if found_group_key:
                 if group_key != file_group_key:
                     found_group_key = False
@@ -1323,6 +1323,7 @@ def process_media(target_input, recurse, adjacent, state_arg, location_arg, desc
                     "extra_nav_link": "", # applies to group_name files
                 }
 
+            print(f"1>                    {old_name}, gk={group_key}, ogk={old_group_key}, fgk={found_group_key}, fmk={found_media_key}")
             s_val = state_arg if state_arg is not None else (match.group(2) if match else (mdata[group_key][old_name].get('state', '') if old_name in mdata[group_key] else ''))
             l_val = location_arg if location_arg is not None else (match.group(3) if match else (mdata[group_key][old_name].get('location', '') if old_name in mdata[group_key] else ''))
             if default:
@@ -1429,14 +1430,16 @@ def process_media(target_input, recurse, adjacent, state_arg, location_arg, desc
                 mdata['summary']['audio'] += 1
                 mdata['summary']['total'] += 1
 
+            print(f"2>                    {old_name} -> {new_name}, gk={group_key}, ogk={old_group_key}, fgk={found_group_key}, fmk={found_media_key}")
             if not found_media_key:
                 d = create_default_entry()
                 old_media_key = ''
             else:
-                #d = copy.deepcopy(mdata[group_key].get(old_name))
-                d = mdata[old_group_key].pop(old_name)
+                d = copy.deepcopy(mdata[old_group_key].get(old_name))
+#                mdata[old_group_key].pop(old_name)
                 old_media_key = old_name # in case it needs deleting by convert_remove
 
+            print(type(d), d)
             d.update({"new_name": new_name})
             if renamed: d.update({'prev_name': old_name})
             if not d.get('orig_name'): d.update({'orig_name': old_name})
@@ -1493,7 +1496,7 @@ def process_media(target_input, recurse, adjacent, state_arg, location_arg, desc
 
 
             if renamed:
-                mdata[group][new_name] = d
+                mdata[group_key][new_name] = d
             else:
                 mdata[group_key][old_name].update(d)
             #if renamed and old_media_key: mdata[group_key].pop(old_media_key)
@@ -1617,7 +1620,7 @@ def process_media(target_input, recurse, adjacent, state_arg, location_arg, desc
 
         for key in missing_keys:
             mdata[group_key].pop(key, None)
-            msg('deleted', f"        : {key} -> File not found")
+            msg('deleted', f"        : {key} key -> File not found")
 
         empty_groups = []
         for group_key in mdata.keys():
@@ -1635,7 +1638,7 @@ def process_media(target_input, recurse, adjacent, state_arg, location_arg, desc
             filename = os.path.join(root, group_name)
             if os.path.exists(filename): os.remove(filename)
             mdata.pop(key, None)
-            msg('deleted', f"        : {key} -> Empty group")
+            msg('deleted', f"        : {key} key -> Empty group")
 
 
 #        mdata_list = list(mdata_dict.values())

@@ -1,5 +1,5 @@
 #!/usr/bin/python3.12
-SVER = '1.0.0'
+SVER = '1.0.1'
 ##############################################################################
 # morg - Media Organizer
 # Copyright (C) 2026 Jason Record
@@ -206,6 +206,7 @@ def create_default_entry():
         "orig_name": '', # the original filename, used to restore original filenames
         "cover_name": '', # for audio/video file, the .jpg that covers the media
         "media_description": '', # the individual file's description in the group html file
+        "people_list": '', # list of people in the image
         "gallery_caption": '', # the caption used for a gallery tile
         "year": 0, # the year of this media file
         "state": '', # state code like ut, ca, vt, etc
@@ -944,6 +945,7 @@ def save_group_html(group_key, mdata):
             map_style = mdata[group_key][media_key].get('map_style')
             map_url = mdata[group_key][media_key].get('map_url')
             media_description = mdata[group_key][media_key].get('media_description')
+            people_list = mdata[group_key][media_key].get('people_list')
             gallery_caption = mdata[group_key][media_key].get('gallery_caption')
 
             if map_style == 1:
@@ -980,10 +982,16 @@ def save_group_html(group_key, mdata):
                 descriptor_str = f"{map_str}\n"
             else:
                 descriptor_str = '\n'
-            if gallery_caption != group_title:
-                f.write(f"""<tr id="{new_name}">\n  <td>{media_str}</td>\n  <td>{descriptor_str}  </td><td>\n<!-- media_description -->{gallery_caption}<br>{media_description}\n  </td>\n</tr>\n""")
+            if people_list:
+                if gallery_caption != group_title:
+                    f.write(f"""<tr id="{new_name}">\n  <td>{media_str}</td>\n  <td>{descriptor_str}  </td><td>\n<!-- media_description -->{gallery_caption}<br>{media_description}<br>{people_list}\n  </td>\n</tr>\n""")
+                else:
+                    f.write(f"""<tr id="{new_name}">\n  <td>{media_str}</td>\n  <td>{descriptor_str}  </td><td>\n<!-- media_description -->{media_description}<br>{people_list}\n  </td>\n</tr>\n""")
             else:
-                f.write(f"""<tr id="{new_name}">\n  <td>{media_str}</td>\n  <td>{descriptor_str}  </td><td>\n<!-- media_description -->{media_description}\n  </td>\n</tr>\n""")
+                if gallery_caption != group_title:
+                    f.write(f"""<tr id="{new_name}">\n  <td>{media_str}</td>\n  <td>{descriptor_str}  </td><td>\n<!-- media_description -->{gallery_caption}<br>{media_description}\n  </td>\n</tr>\n""")
+                else:
+                    f.write(f"""<tr id="{new_name}">\n  <td>{media_str}</td>\n  <td>{descriptor_str}  </td><td>\n<!-- media_description -->{media_description}\n  </td>\n</tr>\n""")
         f.write(f"</table>\n\n</body></html>\n")
     msg('', "Done")
 

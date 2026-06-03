@@ -125,6 +125,7 @@ ext_all = tuple([f".{ext}" for ext in ext_all_str.split('|')])
 
 URL_BASE = "https://www.google.com/maps"
 SUMMARY_FILE = '0-README.html'
+CSS_FILE_GLOBAL = "style-global.css"
 CSS_FILE_MAIN = "style-main.css"
 CSS_FILE_GALLERY = "style-gallery.css"
 CSS_FILE_THUMBNAILS = "style-thumbnails.css"
@@ -559,6 +560,17 @@ def get_av_duration(file):
 
     return extracted
 
+def get_sorted_keys(mdata):
+    file_list = []
+    for group_key in mdata.keys():
+        if group_key.startswith("summary"): continue
+        for media_key in mdata[group_key].keys():
+            ext = os.path.splitext(media_key)[-1].lower()
+            if not ext in ext_all: continue
+            file_list.append([media_key, group_key])
+    sorted_keys = sorted(file_list)
+    return sorted_keys
+
 def backup_media_data_file(root):
     backup_file = os.path.join(root, f"{MEDIA_DATA_FILE}-backup-{log_time}.json")
     data_file = os.path.join(root, f"{MEDIA_DATA_FILE}")
@@ -583,7 +595,7 @@ def reset_revisions(target, recurse):
         with open(os.path.join(root, f"{MEDIA_DATA_FILE}"), 'w') as f:
             json.dump(mdata, f, indent=4)
 
-def create_style_css(root):
+def create_main_css(root):
     css_name = CSS_FILE_MAIN
     css_path = f"{root}/{css_name}"
     msg('css', f"Creating {css_name}")
@@ -673,24 +685,25 @@ body {{
 }}
 \n""")
 
+def create_global_css(root):
+    css_name = CSS_FILE_GLOBAL
+    css_path = f"{root}/{css_name}"
+    msg('css', f"Creating {css_name}")
+    with open(css_path, 'w') as f:
+        f.write(f"""/* Global CSS */
+body {{
+    font-family: sans-serif;
+    background-color: #f0f0f0;
+    padding: 16px;
+}}
+""")
+
 def create_thumbnails_css(root):
     css_name = CSS_FILE_THUMBNAILS
     css_path = f"{root}/{css_name}"
     msg('css', f"Creating {css_name}")
     with open(css_path, 'w') as f:
         f.write(f"""/* Style for Thumbnails */
-* {{
-    box-sizing: border-box;
-    margin: 0;
-    padding: 0;
-}}
-
-body {{
-    font-family: sans-serif;
-    background-color: #f0f0f0;
-    padding: 16px;
-}}
-
 /* Responsive Grid Container */
 .photo-grid {{
     display: grid;
@@ -905,6 +918,7 @@ def save_group_html(group_key, mdata):
     nav_str = get_navigation_str(group_key, root, mdata)
     with open(grouped_path, 'w') as f:
         f.write(f"""<!DOCTYPE html><html><head><meta name="robots" content="none">\n""")
+        f.write(f"""<link rel="stylesheet" type="text/css" href="{CSS_FILE_GLOBAL}">\n""")
         f.write(f"""<link rel="stylesheet" type="text/css" href="{CSS_FILE_MAIN}">\n""")
         f.write(f"""<meta charset="UTF-8">\n""")
         f.write(f"""<meta name="viewport" content="width=device-width, initial-scale=1.0">\n""")
@@ -978,11 +992,12 @@ def create_group_templates(target, recurse):
     dir_groups = get_dir_groups(target, recurse)
     for root, files in dir_groups.items():
         msg('dir', root)
-        create_style_css(root)
         mdata = get_media_data(root)
         if not mdata:
             msg('error', f"File not found - {MEDIA_DATA_FILE}, run 'morg .' first")
             return
+        create_global_css(root)
+        create_main_css(root)
 
         for group_key in mdata.keys():
             if group_key.startswith("summary"): continue
@@ -997,18 +1012,22 @@ def create_thumbnails(target, recurse, verbose):
     dir_groups = get_dir_groups(target, recurse)
     for root, files in dir_groups.items():
         msg('dir', root)
+        create_global_css(root)
         create_thumbnails_css(root)
         mdata = get_media_data(root)
         if not mdata:
             msg('error', f"File not found - {MEDIA_DATA_FILE}, run 'morg .' first")
             return
 
+        msg('thumbnail', f"Saving thumbnail file {index_name}... ", flush=True)
+        sorted_keys = get_sorted_keys(mdata)
         header = mdata['summary'].get('gallery_header')
         nav_str = get_navigation_str('thumbnails', root, mdata)
         with open(index_path, 'w') as f:
             f.write(f"""<!DOCTYPE html>
 <html lang="en">
 <head>
+    <link rel="stylesheet" type="text/css" href="{CSS_FILE_GLOBAL}">
     <link rel="stylesheet" type="text/css" href="{CSS_FILE_THUMBNAILS}">
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -1017,26 +1036,28 @@ def create_thumbnails(target, recurse, verbose):
 <body>
     <h2 style="text-align:center;">{header}</h2>
     <h4 style="text-align:center;">{nav_str}</h4>
-<p align="center">
+    <p align="center">
 <!-- summary_description -->{mdata['summary'].get('summary_description')}
-</p><br>
+    </p><br>
     <div class="photo-grid">
 """)
-            for group_key in mdata.keys():
-                if group_key.startswith("summary"): continue
+            for entry in sorted_keys:
+                group_key = entry[1]
+                media_key = entry[0]
                 group_name = mdata[group_key].get('group_name')
-                for media_key in mdata[group_key].keys():
-                    ext = os.path.splitext(media_key)[-1].lower()
-                    if not ext in ext_all: continue
-                    new_name = mdata[group_key][media_key].get('new_name')
-                    if not os.path.exists(new_name): continue
-
+                new_name = mdata[group_key][media_key].get('new_name')
+                cover_name = mdata[group_key][media_key].get('cover_name')
+                file_name = cover_name if cover_name else new_name
+                if not os.path.exists(file_name): continue
+                if cover_name:
+                    f.write(f"""        <div class="grid-item"><a href="{group_name}#{new_name}"><img src="{cover_name}"></a></div>\n""")
+                else:
                     f.write(f"""        <div class="grid-item"><a href="{group_name}#{new_name}"><img src="{new_name}"></a></div>\n""")
-
             f.write(f"""    </div>
 </body>
 </html>
 """)
+    msg('', 'Done')
     print()
 
 def create_index(target, recurse, verbose):
@@ -1047,21 +1068,24 @@ def create_index(target, recurse, verbose):
     dir_groups = get_dir_groups(target, recurse)
     for root, files in dir_groups.items():
         msg('dir', root)
-        create_gallery_css(root)
         mdata = get_media_data(root)
         if not mdata:
             msg('error', f"File not found - {MEDIA_DATA_FILE}, run 'morg .' first")
             return
+        create_global_css(root)
+        create_gallery_css(root)
 
+        msg('gallery', f"Saving index file {index_name}... ", flush=True)
+        sorted_keys = get_sorted_keys(mdata)
         summary_year = mdata['summary'].get('year')
         year = f" {summary_year}" if summary_year > 0 else ""
-
         header = mdata['summary'].get('gallery_header')
         nav_str = get_navigation_str('gallery', root, mdata)
         with open(index_path, 'w') as f:
             f.write(f"""<!DOCTYPE html>
 <html lang="en">
 <head>
+    <link rel="stylesheet" type="text/css" href="{CSS_FILE_GLOBAL}">
     <link rel="stylesheet" type="text/css" href="{CSS_FILE_GALLERY}">
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -1070,92 +1094,90 @@ def create_index(target, recurse, verbose):
 <body>
     <h2 style="text-align:center;">{header}</h2>
     <h4 style="text-align:center;">{nav_str}</h4>
-<p align="center">
+    <p align="center">
 <!-- summary_description -->{mdata['summary'].get('summary_description')}
-</p><br>
+    </p><br>
     <div class="gallery-grid">
 """)
-            for group_key in mdata.keys():
-                if group_key.startswith("summary"): continue
+            for entry in sorted_keys:
+                group_key = entry[1]
+                media_key = entry[0]
                 group_name = mdata[group_key].get('group_name')
-                for media_key in mdata[group_key].keys():
-                    ext = os.path.splitext(media_key)[-1].lower()
-                    if not ext in ext_all: continue
-                    new_name = mdata[group_key][media_key].get('new_name')
-                    if not os.path.exists(new_name): continue
-                    cover_name = mdata[group_key][media_key].get('cover_name')
-                    media_type_list = mdata[group_key][media_key].get('mime_type')
-                    media_type = media_type_list[0]
-                    mime_type = '/'.join(media_type_list)
-                    map_style = mdata[group_key][media_key].get('map_style')
-                    map_url = mdata[group_key][media_key].get('map_url')
-                    media_description = mdata[group_key][media_key].get('media_description')
-                    gallery_caption = mdata[group_key][media_key].get('gallery_caption')
+                new_name = mdata[group_key][media_key].get('new_name')
+                if not os.path.exists(new_name): continue
+                cover_name = mdata[group_key][media_key].get('cover_name')
+                media_type_list = mdata[group_key][media_key].get('mime_type')
+                media_type = media_type_list[0]
+                mime_type = '/'.join(media_type_list)
+                map_style = mdata[group_key][media_key].get('map_style')
+                map_url = mdata[group_key][media_key].get('map_url')
+                media_description = mdata[group_key][media_key].get('media_description')
+                gallery_caption = mdata[group_key][media_key].get('gallery_caption')
 
-
-                    if media_type == "image":
-                        f.write(f"""        <!-- Image Item -->
-            <div class="gallery-item">
-                <div class="media-container">
-                    <a href="{new_name}" target="{new_name}" style="width:100%; height:100%;">
-                        <img src="{new_name}" alt="{new_name}">
-                    </a>
-                </div>
-                <div class="content-box">
-                    <div class="link-group">
-                        <a href="{group_name}#{new_name}">Details</a>
-                        <a href="{new_name}" target="{new_name}">Photo</a>
+                if media_type == "image":
+                    f.write(f"""        <!-- Image Item -->
+        <div class="gallery-item">
+            <div class="media-container">
+                <a href="{new_name}" target="{new_name}" style="width:100%; height:100%;">
+                    <img src="{new_name}" alt="{new_name}">
+                </a>
+            </div>
+            <div class="content-box">
+                <div class="link-group">
+                    <a href="{group_name}#{new_name}">Details</a>
+                    <a href="{new_name}" target="{new_name}">Photo</a>
 <!-- gallery_caption -->{gallery_caption}
-                    </div>
                 </div>
             </div>
-    """)
-                    elif media_type == "video":
-                        photo_link = f"""
-                        <a href="{cover_name}" target="{cover_name}">Photo</a>""" if cover_name else ""
-                        f.write(f"""        <!-- Video Item -->
-            <div class="gallery-item">
-                <div class="media-container">
-                    <video controls poster="{cover_name}" preload="none">
+        </div>
+""")
+                elif media_type == "video":
+                    photo_link = f"""
+                    <a href="{cover_name}" target="{cover_name}">Photo</a>""" if cover_name else ""
+                    f.write(f"""        <!-- Video Item -->
+        <div class="gallery-item">
+            <div class="media-container">
+                <video controls poster="{cover_name}" preload="none">
+                    <source src="{new_name}" type="{mime_type}">
+                    Your browser does not support the video tag.
+                </video>
+            </div>
+            <div class="content-box">
+                <div class="link-group">
+                    <a href="{group_name}">Details</a>{photo_link}
+                    <a href="{new_name}" target="{new_name}">Video</a>
+<!-- gallery_caption -->{gallery_caption}
+                </div>
+            </div>
+        </div>
+""")
+                elif media_type == "audio":
+                    photo_link = f"""
+                    <a href="{cover_name}" target="{cover_name}">Photo</a>""" if cover_name else ""
+                    f.write(f"""        <!-- Audio Item -->
+        <div class="gallery-item">
+            <div class="media-container">
+                <!-- Using {cover_name} as a visual overlay wrapper for the audio player -->
+                <div class="audio-bg" style="background-image: url('{cover_name}');">
+                    <audio controls>
                         <source src="{new_name}" type="{mime_type}">
-                        Your browser does not support the video tag.
-                    </video>
-                </div>
-                <div class="content-box">
-                    <div class="link-group">
-                        <a href="{group_name}">Details</a>{photo_link}
-                        <a href="{new_name}" target="{new_name}">Video</a>
-<!-- gallery_caption -->{gallery_caption}
-                    </div>
+                        Your browser does not support the audio element.
+                    </audio>
                 </div>
             </div>
-    """)
-                    elif media_type == "audio":
-                        photo_link = f"""
-                        <a href="{cover_name}" target="{cover_name}">Photo</a>""" if cover_name else ""
-                        f.write(f"""        <!-- Audio Item -->
-            <div class="gallery-item">
-                <div class="media-container">
-                    <!-- Using {cover_name} as a visual overlay wrapper for the audio player -->
-                    <div class="audio-bg" style="background-image: url('{cover_name}');">
-                        <audio controls>
-                            <source src="{new_name}" type="{mime_type}">
-                            Your browser does not support the audio element.
-                        </audio>
-                    </div>
-                </div>
-                <div class="content-box">
-                    <div class="link-group">
-                        <a href="{group_name}">Details</a>{photo_link}
+            <div class="content-box">
+                <div class="link-group">
+                    <a href="{group_name}">Details</a>{photo_link}
 <!-- gallery_caption -->{gallery_caption}
-                    </div>
                 </div>
             </div>
-    """)
+        </div>
+""")
             f.write(f"""    </div>
         </body>
         </html>
         """)
+    msg('', 'Done')
     print()
 
 def create_summary(target, recurse, verbose):
@@ -1168,6 +1190,10 @@ def create_summary(target, recurse, verbose):
         if not mdata:
             msg('error', f"File not found - {MEDIA_DATA_FILE}, run 'morg .' first")
             return
+        create_global_css(root)
+        create_gallery_css(root)
+
+        msg('summary', f"Saving summary file {SUMMARY_FILE}... ", flush=True)
         backup_media_data_file(root)
         dtnow = datetime.now().strftime('%B %d, %Y')
         header = mdata['summary'].get('summary_header')
@@ -1175,25 +1201,29 @@ def create_summary(target, recurse, verbose):
         nav_str = get_navigation_str('summary', root, mdata)
         html_files = {}
 
-        msg('summary', "Writing Summary File")
         with open(summary_path, 'w') as sf:
-            sf.write(f'<!DOCTYPE html><html><head><meta name="robots" content="none">\n')
-            sf.write(f'<title>{header}</title>\n')
-            sf.write(f"""<link rel="stylesheet" type="text/css" href="style.css">\n""")
-            sf.write(f"""<meta charset="UTF-8">\n""")
-            sf.write(f"""<meta name="viewport" content="width=device-width, initial-scale=1.0">\n""")
-            sf.write(f'</head>\n')
-            sf.write(f'<body><h1 align="center">{header}</h1>\n')
+            sf.write(f"""<!DOCTYPE html>
+<html lang="en">
+<head>
+    <link rel="stylesheet" type="text/css" href="{CSS_FILE_GLOBAL}">
+    <link rel="stylesheet" type="text/css" href="{CSS_FILE_MAIN}">
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{header}</title>
+</head>
+<body>
+    <h2 style="text-align:center;">{header}</h2>
+    <h4 style="text-align:center;">{nav_str}</h4>
+    <p align="center">
+<!-- summary_description -->{mdata['summary'].get('summary_description')}
+    </p><br>
+""")
             sf.write(f'<center><table><tr><td>Summary Date:</td><td>{dtnow}</td></tr>\n')
             sf.write(f'<tr><td>Summary For:</td><td>{root}</td></tr>\n')
             sf.write(f"<tr><td>Media Files:</td><td>Images: {mdata['summary'].get('images')}, Videos: {mdata['summary'].get('videos')}, Audio: {mdata['summary'].get('audio')}, TOTAL: {mdata['summary'].get('total')}</td></tr>\n")
             sf.write(f'<tr><td>Organized By:</td><td>Media Organizer, v{SVER}</td></tr>\n')
-            sf.write(f'<tr><td>Navigation:</td><td>{nav_str}</td></tr>\n')
             sf.write(f"</table>\n")
             sf.write(f"""
-<p>
-<!-- summary_description -->{mdata['summary'].get('summary_description')}
-</p><br>
 
 <details>
     <summary style="cursor: pointer; font-weight: bold; color: #0066cc; margin-bottom: 10px;">Detailed Explanation</summary>
@@ -1237,6 +1267,7 @@ def create_summary(target, recurse, verbose):
                     sf.write(f"{link_to_html}\n")
             sf.write(f'</table>\n')
             sf.write(f'</body></html>\n')
+        msg('', 'Done')
         print()
 
 def msgd(identifier, filename, *args):
@@ -1327,7 +1358,7 @@ def process_media(target_input, recurse, adjacent, state_arg, location_arg, desc
                 "extra_nav_link": "", # applies to group_name files
             })
 
-            print(f"1>                    {old_name}, gk={group_key}, ogk={old_group_key}, fgk={found_group_key}, fmk={found_media_key}")
+#            print(f"1>                    {old_name}, gk={group_key}, ogk={old_group_key}, fgk={found_group_key}, fmk={found_media_key}")
             s_val = state_arg if state_arg is not None else (match.group(2) if match else (mdata[group_key][old_name].get('state', '') if old_name in mdata[group_key] else ''))
             l_val = location_arg if location_arg is not None else (match.group(3) if match else (mdata[group_key][old_name].get('location', '') if old_name in mdata[group_key] else ''))
             if default:
@@ -1434,12 +1465,11 @@ def process_media(target_input, recurse, adjacent, state_arg, location_arg, desc
                 mdata['summary']['audio'] += 1
                 mdata['summary']['total'] += 1
 
-            print(f"2>                    {old_name} -> {new_name}, gk={group_key}, ogk={old_group_key}, fgk={found_group_key}, fmk={found_media_key}")
+#            print(f"2>                    {old_name} -> {new_name}, gk={group_key}, ogk={old_group_key}, fgk={found_group_key}, fmk={found_media_key}")
             if not found_media_key:
                 d = create_default_entry()
                 old_media_key = ''
             else:
-#                d = copy.deepcopy(mdata[old_group_key].get(old_name))
                 d = mdata[old_group_key].pop(old_name)
                 old_media_key = old_name # in case it needs deleting by convert_remove
 
@@ -1502,7 +1532,6 @@ def process_media(target_input, recurse, adjacent, state_arg, location_arg, desc
                 mdata[group_key][new_name] = d
             else:
                 mdata[group_key][old_name] = d
-            #if renamed and old_media_key: mdata[group_key].pop(old_media_key)
 
             gps_id = "gps-" if gps_str == "N/A" else "gps+"
             msg(action, f"{updated_datetime[0]} {updated_datetime[1]} {gps_id}: {old_name} -> {new_name} ({source})")

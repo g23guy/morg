@@ -1077,8 +1077,6 @@ def create_index(target, recurse, verbose):
 
         msg('gallery', f"Saving index file {index_name}... ", flush=True)
         sorted_keys = get_sorted_keys(mdata)
-        summary_year = mdata['summary'].get('year')
-        year = f" {summary_year}" if summary_year > 0 else ""
         header = mdata['summary'].get('gallery_header')
         nav_str = get_navigation_str('gallery', root, mdata)
         with open(index_path, 'w') as f:
@@ -1506,6 +1504,7 @@ def process_media(target_input, recurse, adjacent, state_arg, location_arg, desc
             else:
                 if group_year != file_year:
                     mdata[group_key].update({'year': 0})
+            group_year = mdata[group_key].get('year')
 
             year_str = f" {group_year}" if group_year > 0 else ""
             if not mdata[group_key].get('group_header'): mdata[group_key].update({'group_header': f"Year{year_str}"})

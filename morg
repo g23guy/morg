@@ -50,6 +50,7 @@ import os
 import re
 import json
 import copy
+import shutil
 import markdown
 import argparse
 import mimetypes
@@ -558,6 +559,11 @@ def get_av_duration(file):
 
     return extracted
 
+def backup_media_data_file(root):
+    backup_file = os.path.join(root, f"{MEDIA_DATA_FILE}-backup-{log_time}.json")
+    data_file = os.path.join(root, f"{MEDIA_DATA_FILE}")
+    if os.path.exists(data_file): shutil.copy(data_file, backup_file)
+
 def reset_revisions(target, recurse):
     notice("Resetting the Revision Histories")
     dir_groups = get_dir_groups(target, recurse)
@@ -573,10 +579,8 @@ def reset_revisions(target, recurse):
                 ext = os.path.splitext(media_key)[-1].lower()
                 if not ext in ext_all: continue
                 mdata[group_key][media_key]['rev'] = [mdata[group_key][media_key]['rev'][0], mdata[group_key][media_key]['rev'][-1]]
-        backup_file = os.path.join(root, f"{MEDIA_DATA_FILE}-backup-{log_time}.json")
-        data_file = os.path.join(root, f"{MEDIA_DATA_FILE}")
-        if os.path.exists(data_file): os.rename(data_file, backup_file)
-        with open(data_file, 'w') as f:
+        backup_media_data_file(root)
+        with open(os.path.join(root, f"{MEDIA_DATA_FILE}"), 'w') as f:
             json.dump(mdata, f, indent=4)
 
 def create_style_css(root):
@@ -1164,6 +1168,7 @@ def create_summary(target, recurse, verbose):
         if not mdata:
             msg('error', f"File not found - {MEDIA_DATA_FILE}, run 'morg .' first")
             return
+        backup_media_data_file(root)
         dtnow = datetime.now().strftime('%B %d, %Y')
         header = mdata['summary'].get('summary_header')
         summary_path = os.path.join(root, SUMMARY_FILE)
@@ -1310,18 +1315,17 @@ def process_media(target_input, recurse, adjacent, state_arg, location_arg, desc
                     found_group_key = True
 
             group_title = d_val.replace('_', ' ').title()
-            if not found_group_key:
-                mdata[group_key] = {
-                    "group_name": f"{group_key}.html",
-                    "group_header": "",
-                    "group_title": group_title,
-                    "group_description": "",
-                    "address": "",
-                    "address_url": "",
-                    "span": "",
-                    "year": -1,
-                    "extra_nav_link": "", # applies to group_name files
-                }
+            mdata.setdefault(group_key, {
+                "group_name": f"{group_key}.html",
+                "group_header": "",
+                "group_title": group_title,
+                "group_description": "",
+                "address": "",
+                "address_url": "",
+                "span": "",
+                "year": -1,
+                "extra_nav_link": "", # applies to group_name files
+            })
 
             print(f"1>                    {old_name}, gk={group_key}, ogk={old_group_key}, fgk={found_group_key}, fmk={found_media_key}")
             s_val = state_arg if state_arg is not None else (match.group(2) if match else (mdata[group_key][old_name].get('state', '') if old_name in mdata[group_key] else ''))
@@ -1435,11 +1439,10 @@ def process_media(target_input, recurse, adjacent, state_arg, location_arg, desc
                 d = create_default_entry()
                 old_media_key = ''
             else:
-                d = copy.deepcopy(mdata[old_group_key].get(old_name))
-#                mdata[old_group_key].pop(old_name)
+#                d = copy.deepcopy(mdata[old_group_key].get(old_name))
+                d = mdata[old_group_key].pop(old_name)
                 old_media_key = old_name # in case it needs deleting by convert_remove
 
-            print(type(d), d)
             d.update({"new_name": new_name})
             if renamed: d.update({'prev_name': old_name})
             if not d.get('orig_name'): d.update({'orig_name': old_name})
@@ -1498,7 +1501,7 @@ def process_media(target_input, recurse, adjacent, state_arg, location_arg, desc
             if renamed:
                 mdata[group_key][new_name] = d
             else:
-                mdata[group_key][old_name].update(d)
+                mdata[group_key][old_name] = d
             #if renamed and old_media_key: mdata[group_key].pop(old_media_key)
 
             gps_id = "gps-" if gps_str == "N/A" else "gps+"
@@ -1643,10 +1646,8 @@ def process_media(target_input, recurse, adjacent, state_arg, location_arg, desc
 
 #        mdata_list = list(mdata_dict.values())
 #        mdata = sorted(mdata_list, key=lambda x: x["new_name"])
-        backup_file = os.path.join(root, f"{MEDIA_DATA_FILE}-backup-{log_time}.json")
-        data_file = os.path.join(root, f"{MEDIA_DATA_FILE}")
-        if os.path.exists(data_file): os.rename(data_file, backup_file)
-        with open(data_file, 'w') as f:
+        backup_media_data_file(root)
+        with open(os.path.join(root, f"{MEDIA_DATA_FILE}"), 'w') as f:
             json.dump(mdata, f, indent=4)
 
     msg('summary', f"Processed {file_cnt} matching files out of {file_eval} found\n")

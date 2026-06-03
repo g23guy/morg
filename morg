@@ -983,10 +983,14 @@ def save_group_html(group_key, mdata):
             else:
                 descriptor_str = '\n'
             if people_list:
-                if gallery_caption != group_title:
-                    f.write(f"""<tr id="{new_name}">\n  <td>{media_str}</td>\n  <td>{descriptor_str}  </td><td>\n<!-- media_description -->{gallery_caption}<br>{media_description}<br>{people_list}\n  </td>\n</tr>\n""")
+                if media_description:
+                    description = f"{media_description}<br>{people_list}"
                 else:
-                    f.write(f"""<tr id="{new_name}">\n  <td>{media_str}</td>\n  <td>{descriptor_str}  </td><td>\n<!-- media_description -->{media_description}<br>{people_list}\n  </td>\n</tr>\n""")
+                    description = f"{people_list}"
+                if gallery_caption != group_title:
+                    f.write(f"""<tr id="{new_name}">\n  <td>{media_str}</td>\n  <td>{descriptor_str}  </td><td>\n<!-- media_description -->{gallery_caption}<br>{description}\n  </td>\n</tr>\n""")
+                else:
+                    f.write(f"""<tr id="{new_name}">\n  <td>{media_str}</td>\n  <td>{descriptor_str}  </td><td>\n<!-- media_description -->{description}\n  </td>\n</tr>\n""")
             else:
                 if gallery_caption != group_title:
                     f.write(f"""<tr id="{new_name}">\n  <td>{media_str}</td>\n  <td>{descriptor_str}  </td><td>\n<!-- media_description -->{gallery_caption}<br>{media_description}\n  </td>\n</tr>\n""")

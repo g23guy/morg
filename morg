@@ -1492,6 +1492,7 @@ def process_media(target_input, recurse, adjacent, state_arg, location_arg, desc
             if renamed: d.update({'prev_name': old_name})
             if not d.get('orig_name'): d.update({'orig_name': old_name})
             if not d.get('gallery_caption'): d.update({'gallery_caption': group_title})
+            if default: d.update({'gallery_caption': group_title})
             if l_val in LOCATION_TAG:
                 d.update({'first_year': first_year, 'last_year': last_year})
             d.update({"year": file_year, "state": s_val, "location": l_val, "description": d_val})
@@ -1729,7 +1730,7 @@ if __name__ == "__main__":
     parser.add_argument("-u", "--thumbnails", action="store_true", help=f"Creates a {THUMBNAIL_FILE} file")
     parser.add_argument("-i", "--index", action="store_true", help=f"Creates an {INDEX_FILE} for the directory gallery of images")
     parser.add_argument("-t", "--time-sequenced", action="store_true", help="Use -T/--hhmmss time if given or the first file's time, and increment it for sebsequent files")
-    parser.add_argument("-R", "--default", action="store_true", help="Resets the headers and titles back to default values")
+    parser.add_argument("-R", "--default", action="store_true", help="Resets the headers, captions, and titles back to default values")
     parser.add_argument("-v", "--verbose", action="store_true", help="Enables verbose output")
     parser.add_argument("-s", "--state", help="State tag, Unsupported characters [-._]")
     parser.add_argument("-l", "--location", help="Location tag, Unsupported characters [-.]")

@@ -1,5 +1,5 @@
 #!/usr/bin/python3.12
-SVER = '1.0.1'
+SVER = '1.0.1_dev1'
 ##############################################################################
 # morg - Media Organizer
 # Copyright (C) 2026 Jason Record
@@ -1209,7 +1209,11 @@ def create_summary(target, recurse, verbose):
         header = mdata['summary'].get('summary_header')
         summary_path = os.path.join(root, SUMMARY_FILE)
         nav_str = get_navigation_str('summary', root, mdata)
-        html_files = {}
+        list_of_groups = []
+        for key in mdata.keys():
+            if key.startswith("group-"):
+                list_of_groups.append([mdata[key].get('group_title'), mdata[key].get('group_name')])
+        sorted_groups = sorted(list_of_groups)
 
         with open(summary_path, 'w') as sf:
             sf.write(f"""<!DOCTYPE html>
@@ -1271,10 +1275,11 @@ def create_summary(target, recurse, verbose):
             \n""")
 
             sf.write(f'<table><tr><th>Event</th></tr>\n')
-            for key in mdata.keys():
-                if key.startswith("group-"):
-                    link_to_html = f"""<tr><td><a href="{mdata[key].get('group_name')}">{mdata[key].get('group_title')}</a></td></tr>"""
-                    sf.write(f"{link_to_html}\n")
+            for kvpair in sorted_groups:
+                group_title = kvpair[0]
+                group_name = kvpair[1]
+                link_to_html = f"""<tr><td><a href="{group_name}">{group_title}</a></td></tr>"""
+                sf.write(f"{link_to_html}\n")
             sf.write(f'</table>\n')
             sf.write(f'</body></html>\n')
         msg('', 'Done')

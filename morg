@@ -856,11 +856,11 @@ def get_navigation_str(key, root, mdata):
         last_year_path = os.path.join(parent_dir, str(last_year))
         next_year_path = os.path.join(parent_dir, str(next_year))
         if os.path.exists(last_year_path):
-            last_year_nav = f"""<a href="../{last_year}/{INDEX_FILE}" class="plain">{last_year}</a>"""
+            last_year_nav = f"""<a href="../{last_year}/_TARGET_FILE_" class="plain">{last_year}</a>"""
         else:
             last_year_nav = f"{last_year}"
         if os.path.exists(next_year_path):
-            next_year_nav = f"""<a href="../{next_year}/{INDEX_FILE}" class="plain">{next_year}</a>"""
+            next_year_nav = f"""<a href="../{next_year}/_TARGET_FILE_" class="plain">{next_year}</a>"""
         else:
             next_year_nav = f"{next_year}"
 
@@ -868,6 +868,7 @@ def get_navigation_str(key, root, mdata):
     else:
         nav_years = ""
     if key.startswith('group-'):
+        nav_years = nav_years.replace("_TARGET_FILE_", f"{INDEX_FILE}")
         nav_str = f"""[ 
             <a href="{SUMMARY_FILE}" class="plain">Summary</a> | 
             <a href="{INDEX_FILE}" class="plain">Gallery</a> | 
@@ -876,6 +877,7 @@ def get_navigation_str(key, root, mdata):
             ]"""
     elif key == 'gallery':
         key = 'summary'
+        nav_years = nav_years.replace("_TARGET_FILE_", f"{INDEX_FILE}")
         nav_str = f"""[ 
             <a href="{SUMMARY_FILE}" class="plain">Summary</a> | 
             Gallery | 
@@ -884,6 +886,7 @@ def get_navigation_str(key, root, mdata):
             ]"""
     elif key == 'thumbnails':
         key = 'summary'
+        nav_years = nav_years.replace("_TARGET_FILE_", f"{THUMBNAIL_FILE}")
         nav_str = f"""[ 
             <a href="{SUMMARY_FILE}" class="plain">Summary</a> | 
             <a href="{INDEX_FILE}" class="plain">Gallery</a> | 
@@ -891,6 +894,7 @@ def get_navigation_str(key, root, mdata):
             {nav_top}{nav_years}{mdata[key].get('extra_nav_link')}
             ]"""
     elif key == 'summary':
+        nav_years = nav_years.replace("_TARGET_FILE_", f"{SUMMARY_FILE}")
         nav_str = f"""[ 
             Summary | 
             <a href="{INDEX_FILE}" class="plain">Gallery</a> | 

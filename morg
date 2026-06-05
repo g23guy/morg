@@ -1,5 +1,5 @@
 #!/usr/bin/python3.12
-SVER = '1.0.2'
+SVER = '1.0.2_dev1'
 ##############################################################################
 # morg - Media Organizer
 # Copyright (C) 2026 Jason Record
@@ -1644,7 +1644,7 @@ def process_media(target_input, recurse, adjacent, state_arg, location_arg, desc
                     gps_id = "gps-" if mdata[group_key][conversion_key]['gps'] == "N/A" else "gps+"
                     msg('updated', f"{updated_datetime[0]} {updated_datetime[1]} {gps_id}: {new_name} (existing)")
                     if convert_remove and c['status'] == "success": 
-                        msg('deleted', f"        : {old_name} -> Isolated media entry")
+                        msg('deleted', f"        : {old_name} -> Removed converted media entry")
                         mdata[group_key].pop(conversion_key)
                         os.remove(old_path)
 

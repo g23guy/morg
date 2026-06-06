@@ -1,5 +1,5 @@
 #!/usr/bin/python3.12
-SVER = '1.0.4'
+SVER = '1.0.5'
 ##############################################################################
 # morg - Media Organizer
 # Copyright (C) 2026 Jason Record
@@ -1061,14 +1061,15 @@ def create_thumbnails(target, recurse, verbose):
                 group_key = entry[1]
                 media_key = entry[0]
                 group_name = mdata[group_key].get('group_name')
+                group_title = mdata[group_key].get('group_title')
                 new_name = mdata[group_key][media_key].get('new_name')
                 cover_name = mdata[group_key][media_key].get('cover_name')
                 file_name = cover_name if cover_name else new_name
                 if not os.path.exists(file_name): continue
                 if cover_name:
-                    f.write(f"""        <div class="grid-item"><a href="{group_name}#{new_name}"><img src="{cover_name}"></a></div>\n""")
+                    f.write(f"""        <div class="grid-item"><a href="{group_name}#{new_name}"><img src="{cover_name} alt="{cover_name}" title="{group_title}"></a></div>\n""")
                 else:
-                    f.write(f"""        <div class="grid-item"><a href="{group_name}#{new_name}"><img src="{new_name}"></a></div>\n""")
+                    f.write(f"""        <div class="grid-item"><a href="{group_name}#{new_name}"><img src="{new_name}" alt="{new_name}" title="{group_title}"></a></div>\n""")
             f.write(f"""    </div>
 </body>
 </html>

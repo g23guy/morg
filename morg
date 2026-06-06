@@ -1,5 +1,5 @@
 #!/usr/bin/python3.12
-SVER = '1.0.3'
+SVER = '1.0.4'
 ##############################################################################
 # morg - Media Organizer
 # Copyright (C) 2026 Jason Record
@@ -24,7 +24,7 @@ SVER = '1.0.3'
 #               Overridden dates and times are written to the filesystem 
 #               access and modification times to applicable files.
 #
-# Modified:     2026 Jun 05
+# Modified:     2026 Jun 06
 #
 ##############################################################################
 #
@@ -1399,11 +1399,13 @@ def process_media(target_input, recurse, adjacent, state_arg, location_arg, desc
                     if overridden:
                         dt, source = override_dt(dt, given_date, given_time), "override"
 
-                if adjacent and source == "modified" and last_source in ["creation", "adjacent"]:
+                if adjacent and source == "modification" and last_source in ["creation", "adjacent"]:
                     if overridden:
                         dt, source = override_dt(dt, given_date, given_time), "override"
                     else:
-                        dt, source = last_date, "adjacent"
+                        source = "adjacent"
+                        dt = last_date
+                        dt += timedelta(seconds=4)
             except Exception as e:
                 msg('error', f"process_media,dt/source {old_name}: {e}")
                 continue

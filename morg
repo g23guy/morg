@@ -1,5 +1,5 @@
 #!/usr/bin/python3.12
-SVER = '1.0.5'
+SVER = '1.0.5.1'
 ##############################################################################
 # morg - Media Organizer
 # Copyright (C) 2026 Jason Record
@@ -1067,7 +1067,7 @@ def create_thumbnails(target, recurse, verbose):
                 file_name = cover_name if cover_name else new_name
                 if not os.path.exists(file_name): continue
                 if cover_name:
-                    f.write(f"""        <div class="grid-item"><a href="{group_name}#{new_name}"><img src="{cover_name} alt="{cover_name}" title="{group_title}"></a></div>\n""")
+                    f.write(f"""        <div class="grid-item"><a href="{group_name}#{new_name}"><img src="{cover_name}" alt="{cover_name}" title="{group_title}"></a></div>\n""")
                 else:
                     f.write(f"""        <div class="grid-item"><a href="{group_name}#{new_name}"><img src="{new_name}" alt="{new_name}" title="{group_title}"></a></div>\n""")
             f.write(f"""    </div>

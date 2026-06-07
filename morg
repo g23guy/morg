@@ -593,7 +593,8 @@ def reset_revisions(target, recurse):
             for media_key in mdata[group_key].keys():
                 ext = os.path.splitext(media_key)[-1].lower()
                 if not ext in ext_all: continue
-                mdata[group_key][media_key]['rev'] = [mdata[group_key][media_key]['rev'][0], mdata[group_key][media_key]['rev'][-1]]
+                mdata[group_key][media_key]['rev'] = [mdata[group_key][media_key]['rev'][0]]
+                mdata[group_key][media_key]['rev'].append([log_time, 'reset'])
         with open(os.path.join(root, f"{MEDIA_DATA_FILE}"), 'w') as f:
             json.dump(mdata, f, indent=4)
 

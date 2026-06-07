@@ -1,5 +1,5 @@
 #!/usr/bin/python3.12
-SVER = '1.0.5.2'
+SVER = '1.0.5.3'
 ##############################################################################
 # morg - Media Organizer
 # Copyright (C) 2026 Jason Record
@@ -1160,7 +1160,7 @@ def create_index(target, recurse, verbose):
             </div>
             <div class="content-box">
                 <div class="link-group">
-                    <a href="{group_name}">Details</a>{photo_link}
+                    <a href="{group_name}#{new_name}">Details</a>{photo_link}
                     <a href="{new_name}" target="{new_name}">Video</a>
 <!-- gallery_caption -->{gallery_caption}
                 </div>
@@ -1183,7 +1183,7 @@ def create_index(target, recurse, verbose):
             </div>
             <div class="content-box">
                 <div class="link-group">
-                    <a href="{group_name}">Details</a>{photo_link}
+                    <a href="{group_name}#{new_name}">Details</a>{photo_link}
 <!-- gallery_caption -->{gallery_caption}
                 </div>
             </div>

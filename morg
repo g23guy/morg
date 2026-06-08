@@ -1300,7 +1300,7 @@ def msgd(identifier, filename, *args):
     msg_str = f"{caller}/{identifier}/{filename}: {var_str}"
     msg('> DEBUG', msg_str)
 
-def process_media(target_input, recurse, adjacent, state_arg, location_arg, description_arg, given_date, given_time, time_sequenced, forced, convert, convert_remove, default, verbose):
+def process_media(target_input, recurse, adjacent, state_arg, location_arg, description_arg, given_date, given_time, time_sequenced, forced, convert, convert_remove, default, default_maps, verbose):
     notice("Organizing Media Files")
     extensions = ext_all
     overridden = False
@@ -1511,8 +1511,12 @@ def process_media(target_input, recurse, adjacent, state_arg, location_arg, desc
             d["updated_datetime"].update({"meta": updated_datetime[0], "fs": updated_datetime[1]})
             d.update({"date_used": dt.isoformat()})
             d.update({"date_source": source})
-            if not d.get('map_url'): d.update({'map_url': map_url})
-            if not d.get('map_style'): d.update({'map_style': map_style})
+            if default_maps:
+                d.update({'map_url': map_url})
+                d.update({'map_style': map_style})
+            else:
+                if not d.get('map_url'): d.update({'map_url': map_url})
+                if not d.get('map_style'): d.update({'map_style': map_style})
             if ext in ext_videos or ext in ext_sounds:
                 cover_name = f"{tagged_base}.jpg"
                 d.update({'duration': get_av_duration(new_name), 'cover_name': cover_name})
@@ -1742,6 +1746,7 @@ if __name__ == "__main__":
     parser.add_argument("-i", "--index", action="store_true", help=f"Creates an {INDEX_FILE} for the directory gallery of images")
     parser.add_argument("-t", "--time-sequenced", action="store_true", help="Use -T/--hhmmss time if given or the first file's time, and increment it for sebsequent files")
     parser.add_argument("-R", "--default", action="store_true", help="Resets the headers, captions, and titles back to default values")
+    parser.add_argument("-M", "--default-maps", action="store_true", help="Resets map links")
     parser.add_argument("-v", "--verbose", action="store_true", help="Enables verbose output")
     parser.add_argument("-s", "--state", help="State tag, Unsupported characters [-._]")
     parser.add_argument("-l", "--location", help="Location tag, Unsupported characters [-.]")
@@ -1774,5 +1779,5 @@ if __name__ == "__main__":
     elif args.reset_revisions: reset_revisions(target_input, args.recurse)
     elif args.reverse: reverse_last_session(target_input, args.recurse)
     elif args.original: restore_original_names(target_input, args.recurse)
-    else: process_media(target_input, args.recurse, args.adjacent, args.state, args.location, args.description, args.yyyymmdd, args.hhmmss, args.time_sequenced, args.force, args.convert, args.convert_remove, args.default, args.verbose)
+    else: process_media(target_input, args.recurse, args.adjacent, args.state, args.location, args.description, args.yyyymmdd, args.hhmmss, args.time_sequenced, args.force, args.convert, args.convert_remove, args.default, args.default_maps, args.verbose)
     

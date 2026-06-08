@@ -1,5 +1,5 @@
 #!/usr/bin/python3.12
-SVER = '1.0.5.3'
+SVER = '1.0.5.4'
 ##############################################################################
 # morg - Media Organizer
 # Copyright (C) 2026 Jason Record
@@ -24,7 +24,7 @@ SVER = '1.0.5.3'
 #               Overridden dates and times are written to the filesystem 
 #               access and modification times to applicable files.
 #
-# Modified:     2026 Jun 06
+# Modified:     2026 Jun 08
 #
 ##############################################################################
 #
@@ -1675,11 +1675,13 @@ def process_media(target_input, recurse, adjacent, state_arg, location_arg, desc
                 new_name = mdata[group_key][media_key].get('new_name')
                 filename = os.path.join(root, new_name)
                 if not os.path.exists(filename):
-                    missing_keys.append(media_key)
+                    missing_keys.append([group_key, media_key])
 
-        for key in missing_keys:
-            mdata[group_key].pop(key, None)
-            msg('deleted', f"        : {key} key -> File not found")
+        for item in missing_keys:
+            group_key = item[0]
+            media_key = item[1]
+            mdata[group_key].pop(media_key, None)
+            msg('deleted', f"        : {group_key},{media_key} key -> File not found")
 
         empty_groups = []
         for group_key in mdata.keys():
@@ -1697,7 +1699,7 @@ def process_media(target_input, recurse, adjacent, state_arg, location_arg, desc
             filename = os.path.join(root, group_name)
             if os.path.exists(filename): os.remove(filename)
             mdata.pop(key, None)
-            msg('deleted', f"        : {key} key -> Empty group")
+            msg('deleted', f"        : {key} key -> Empty group with its filename")
 
 
 #        mdata_list = list(mdata_dict.values())

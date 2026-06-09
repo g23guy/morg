@@ -45,7 +45,7 @@ SVER = '1.0.5.4_dev1'
 #
 ##############################################################################
 
-#from pprint import pprint
+from pprint import pprint
 import os
 import re
 import json
@@ -451,19 +451,75 @@ def print_media_table(log_path, verbose):
     except Exception as e:
         print(f"Error reading log {log_path}: {e}")
 
-def reverse_last_session(target_path, recurse):
+def reverse_last_session(target, recurse):
     notice("Restoring Media Files from Last Session, Except Converted Files")
-    # once files are converted, they are not converted back
-    logs = []
-    if logs:
-        with open(logs[-1], 'r') as f:
-            for e in json.load(f):
-                curr, orig = os.path.join(os.path.dirname(logs[-1]), e['new_name']), os.path.join(os.path.dirname(logs[-1]), e['orig_name'])
-                if e.get('action') == 'converted':
-                    print(f"[CONVERTED] {e['orig_name']} -> {e['new_name']}: Cannot be reversed")
-                elif os.path.exists(curr): 
-                    os.rename(curr, orig)
-                    print(f"[REVERSED]  {e['new_name']} -> {e['orig_name']}")
+    dir_groups = get_dir_groups(target, recurse)
+
+    for root, files in dir_groups.items():
+        msg('dir', root)
+        mdata = get_media_data(root)
+        if not mdata:
+            msg('error', f"File not found - {MEDIA_DATA_FILE}, run 'morg .' first")
+            return
+        else:
+            backup_media_data_file(root)
+
+        actions = {}
+        for group_key in mdata.keys():
+            for media_key in mdata[group_key].keys():
+                entry = mdata[group_key][media_key]
+                ext = os.path.splitext(media_key)[-1].lower()
+                if not ext in ext_all: continue
+                if entry.get('status') == 'success':
+                    curr, prev, logged, action = entry.get('new_name'), entry.get('prev_name'), entry['rev'][-1][0], entry['rev'][-1][1]
+                if not logged in actions:
+                    actions[logged] = []
+                actions[logged].append([logged, action, curr, prev])
+        last_session = ''
+        for session in actions.keys():
+            if session > last_session:
+                last_session = session
+        reverse_session = actions.get(last_session)
+        restore_reset = False
+        restore_default = False
+        restore_main = False
+        for logged, action, curr, prev in reverse_session:
+            if action == 'renamed':
+                if os.path.exists(curr):
+                    restore_main = True
+                    os.rename(curr, prev)
+                    msg('reversed', f"{curr} -> {prev}")
+            elif action == 'converted':
+                msg('converted', f"{curr} -> {prev}: Cannot be restored")
+            elif action == 'reviewed':
+                msg('reviewed', f"{curr} -> Nothing to restore")
+            elif action == 'reset':
+                restore_reset = True
+            elif action == 'default':
+                restore_default = True
+
+        filename = f"{MEDIA_DATA_FILE}-backup-{logged}.json"
+        backup_file = os.path.join(root, filename)
+        data_file = os.path.join(root, MEDIA_DATA_FILE)
+        if restore_main:
+            if os.path.exists(backup_file):
+                shutil.copy(backup_file, data_file)
+                msg('reversed', f"{filename} -> {MEDIA_DATA_FILE}")
+            else:
+                msg('error', f"{filename} -> File not found")
+        elif restore_reset:
+            if os.path.exists(backup_file):
+                shutil.copy(backup_file, data_file)
+                msg('reset', f"{filename} -> {MEDIA_DATA_FILE}")
+            else:
+                msg('error', f"{filename} -> File not found")
+        elif restore_default:
+            if os.path.exists(backup_file):
+                shutil.copy(backup_file, data_file)
+                msg('default', f"{filename} -> {MEDIA_DATA_FILE}")
+            else:
+                msg('error', f"{filename} -> File not found")
+            
         print()
 
 def restore_original_names(target, recurse):
@@ -578,7 +634,9 @@ def get_sorted_keys(mdata):
     return sorted_keys
 
 def backup_media_data_file(root):
-    backup_file = os.path.join(root, f"{MEDIA_DATA_FILE}-backup-{log_time}.json")
+    filename = f"{MEDIA_DATA_FILE}-backup-{log_time}.json"
+    msg('backup', f"{MEDIA_DATA_FILE} -> {filename}")
+    backup_file = os.path.join(root, filename)
     data_file = os.path.join(root, f"{MEDIA_DATA_FILE}")
     if os.path.exists(data_file): shutil.copy(data_file, backup_file)
 
@@ -598,6 +656,8 @@ def reset_revisions(target, recurse):
             for media_key in mdata[group_key].keys():
                 ext = os.path.splitext(media_key)[-1].lower()
                 if not ext in ext_all: continue
+                curr = mdata[group_key][media_key].get('new_name')
+                msg('reset', f"{curr} -> Reset revision history")
                 mdata[group_key][media_key]['rev'] = [mdata[group_key][media_key]['rev'][0]]
                 mdata[group_key][media_key]['rev'].append([log_time, 'reset'])
         with open(os.path.join(root, f"{MEDIA_DATA_FILE}"), 'w') as f:
@@ -1458,7 +1518,7 @@ def process_media(target_input, recurse, adjacent, state_arg, location_arg, desc
                     action = "renamed"
                     os.rename(old_path, new_path)
                 else:
-                    action = "default" if default else "reviewed"
+                    action = "default" if default or default_maps else "reviewed"
                     updated_datetime = set_datetime(new_path, dt)
 
             except Exception as e:
@@ -1750,7 +1810,7 @@ if __name__ == "__main__":
     parser.add_argument("-u", "--thumbnails", action="store_true", help=f"Creates a {THUMBNAIL_FILE} file")
     parser.add_argument("-i", "--index", action="store_true", help=f"Creates an {INDEX_FILE} for the directory gallery of images")
     parser.add_argument("-t", "--time-sequenced", action="store_true", help="Use -T/--hhmmss time if given or the first file's time, and increment it for sebsequent files")
-    parser.add_argument("-R", "--default", action="store_true", help="Resets the headers, captions, and titles back to default values")
+    parser.add_argument("-R", "--default-titles", action="store_true", help="Resets the headers, captions, and titles back to default values")
     parser.add_argument("-M", "--default-maps", action="store_true", help="Resets map links")
     parser.add_argument("-v", "--verbose", action="store_true", help="Enables verbose output")
     parser.add_argument("-s", "--state", help="State tag, Unsupported characters [-._]")
@@ -1784,5 +1844,5 @@ if __name__ == "__main__":
     elif args.reset_revisions: reset_revisions(target_input, args.recurse)
     elif args.reverse: reverse_last_session(target_input, args.recurse)
     elif args.original: restore_original_names(target_input, args.recurse)
-    else: process_media(target_input, args.recurse, args.adjacent, args.state, args.location, args.description, args.yyyymmdd, args.hhmmss, args.time_sequenced, args.force, args.convert, args.convert_remove, args.default, args.default_maps, args.verbose)
+    else: process_media(target_input, args.recurse, args.adjacent, args.state, args.location, args.description, args.yyyymmdd, args.hhmmss, args.time_sequenced, args.force, args.convert, args.convert_remove, args.default_titles, args.default_maps, args.verbose)
     

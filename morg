@@ -1,5 +1,5 @@
 #!/usr/bin/python3.12
-SVER = '1.0.5.4'
+SVER = '1.0.5.4_dev1'
 ##############################################################################
 # morg - Media Organizer
 # Copyright (C) 2026 Jason Record
@@ -466,40 +466,45 @@ def reverse_last_session(target_path, recurse):
                     print(f"[REVERSED]  {e['new_name']} -> {e['orig_name']}")
         print()
 
-def restore_original_names(target_path, recurse):
+def restore_original_names(target, recurse):
     notice("Restoring Media Files to the Original Names, Except Converted Files")
-    recurse = False # unsupported right now
-    root = target_path['root']
-    # once files are converted, they are not converted back
-    mdata = get_media_data(root)
-    if not mdata:
-        msg('error', f"File not found - {MEDIA_DATA_FILE}, run 'morg .' first")
-        return
+    dir_groups = get_dir_groups(target, recurse)
 
-    for entry in mdata:
-        if entry.get('status') == 'success':
-            curr, orig = entry.get('new_name'), entry.get('orig_name')
-            been_converted = any(event[0] == "converted" for event in entry["rev"])
-            if been_converted:
-                msg('converted', f"{orig} -> {curr}: Cannot be restored")
-            elif os.path.exists(curr):
-                os.rename(curr, orig)
-                msg('restored', f"{curr} -> {orig}")
+    for root, files in dir_groups.items():
+        msg('dir', root)
+        mdata = get_media_data(root)
+        if not mdata:
+            msg('error', f"File not found - {MEDIA_DATA_FILE}, run 'morg .' first")
+            return
 
-    summary_path = os.path.join(root, SUMMARY_FILE)
-    mdata_path = os.path.join(root, MEDIA_DATA_FILE)
+        for group_key in mdata.keys():
+            for media_key in mdata[group_key].keys():
+                entry = mdata[group_key][media_key]
+                ext = os.path.splitext(media_key)[-1].lower()
+                if not ext in ext_all: continue
+                if entry.get('status') == 'success':
+                    curr, orig = entry.get('new_name'), entry.get('orig_name')
+                    been_converted = any(event[1] == "converted" for event in entry["rev"])
+                    if been_converted:
+                        msg('converted', f"{orig} -> {curr}: Cannot be restored")
+                    elif os.path.exists(curr):
+                        os.rename(curr, orig)
+                        msg('restored', f"{curr} -> {orig}")
 
-    if os.path.exists(summary_path): os.remove(summary_path)
-    if os.path.exists(mdata_path): os.remove(mdata_path)
-    extensions = ['*.html', '*.css']
-    files = []
-    for ext in extensions:
-        files.extend(glob.glob(ext))
-    for f in files:
-        try:
-            os.remove(f)
-        except Exception: pass
-    print()
+        summary_path = os.path.join(root, SUMMARY_FILE)
+        mdata_path = os.path.join(root, MEDIA_DATA_FILE)
+
+        if os.path.exists(summary_path): os.remove(summary_path)
+        if os.path.exists(mdata_path): os.remove(mdata_path)
+        extensions = ['*.html', '*.css']
+        files = []
+        for ext in extensions:
+            files.extend(glob.glob(ext))
+        for f in files:
+            try:
+                os.remove(f)
+            except Exception: pass
+        print()
 
 def get_gpsurl(gps_str, l_val):
     map_height = '200m'

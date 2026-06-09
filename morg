@@ -418,38 +418,50 @@ def get_dir_groups(target, recurse):
 
     return dir_groups
 
-def print_media_table(log_path, verbose):
+def print_media_table(target, recurse, verbose):
     """Prints a log file with dynamic column widths for full filenames."""
-    try:
-        with open(log_path, 'r') as f:
-            log_data = json.load(f)
-        if not log_data: return
+    dir_groups = get_dir_groups(target, recurse)
+    log_data = {}
+    log_path = ''
+    for root, files in dir_groups.items():
+        msg('dir', root)
+        mdata = get_media_data(root)
+        if not mdata:
+            msg('error', f"File not found - {MEDIA_DATA_FILE}, run 'morg .' first")
+            return
+
+        report_data = []
+        for group_key in mdata.keys():
+            for media_key in mdata[group_key].keys():
+                entry = mdata[group_key][media_key]
+                ext = os.path.splitext(media_key)[-1].lower()
+                if not ext in ext_all: continue
+                curr = entry.get('new_name')
+                prev = entry.get('prev_name')
+                logged, action = entry['rev'][-1]
+                dtup = f"{entry['updated_datetime'].get('meta')}{entry['updated_datetime'].get('fs')}"
+                if entry.get('gps') == "N/A":
+                    dtup = f"{dtup}-"
+                else:
+                    dtup = f"{dtup}+"
+                dtsrc = entry.get('date_source')
+                report_data.append([curr, prev, logged, action, dtup, dtsrc])
+        report_data = sorted(report_data)
 
         # Calculate widths based on content
-        w_orig = max(len(e['orig_name']) for e in log_data)
-        w_new = max(len(e['new_name']) for e in log_data)
-        w_used = max(len(e['date_used']) for e in log_data)
-        w_source = max(len(e['date_source']) for e in log_data)
-        w_action = max(len(e['action']) for e in log_data)
-        w_gps = max(len(e['gps']) for e in log_data)
-        w_gps = max(w_gps, 3)
-        w_orig, w_new = max(w_orig, 13), max(w_new, 8)
+        w_curr = max(len(e[0]) for e in report_data)
+        w_prev = max(len(e[1]) for e in report_data)
+        w_action = max(len(e[3]) for e in report_data)
+        w_log = 15
+        w_dtsrc = max(len(e[5]) for e in report_data)
+        w_dtup = 3
 
-        print(f"LOG: {log_path}")
-        if verbose:
-            header = f"{'ORIGINAL_NAME':<{w_orig}} | {'NEW_NAME':<{w_new}} | {'ACTION':<{w_action}} | {'DATE':<{w_used}} | {'SOURCE':<{w_source}} | {'META':<4} | {'FS':<2} | {'TYPE':<10}"
-            print(header)
-            print("-" * len(header))
-            for e in log_data:
-                print(f"{e['orig_name']:<{w_orig}} | {e['new_name']:<{w_new}} | {e['action'].upper():<{w_action}} | {e['date_used']:<{w_used}} | {e['date_source']:<{w_source}} | {e['updated_datetime']['meta']:<4} | {e['updated_datetime']['fs']:<2} | {e['mime_type'][0]:<10}")
-        else:
-            header = f"{'ORIGINAL_NAME':<{w_orig}} | {'NEW_NAME':<{w_new}} | {'ACTION':<{w_action}} | {'DATE':<{w_used}} | {'SOURCE':<{w_source}} | {'META':<4} | {'FS':<2} | {'GPS':<{w_gps}} | {'TYPE':<10}"
-            print(header)
-            print("-" * len(header))
-            for e in log_data:
-                print(f"{e['orig_name']:<{w_orig}} | {e['new_name']:<{w_new}} | {e['action'].upper():<{w_action}} | {e['date_used']:<{w_used}} | {e['date_source']:<{w_source}} | {e['updated_datetime']['meta']:<4} | {e['updated_datetime']['fs']:<2} | {e['gps']:<{w_gps}} | {e['mime_type'][0]:<10}")
-    except Exception as e:
-        print(f"Error reading log {log_path}: {e}")
+        header = f" {'MFG':<{w_dtup}} | {'LOGGED':<{w_log}} | {'ACTION':<{w_action}} | {'SOURCE':<{w_dtsrc}} | {'CURRENT':<{w_curr}} | {'PREVIOUS':<{w_prev}}"
+        print(header)
+        print("-" * len(header))
+        for curr, prev, logged, action, dtup, dtsrc in report_data:
+            print(f" {dtup:<{w_dtup}} | {logged:<{w_log}} | {action:<{w_action}} | {dtsrc:<{w_dtsrc}} | {curr:<{w_curr}} | {prev:<{w_prev}}")
+        print()
 
 def reverse_last_session(target, recurse):
     notice("Restoring Media Files from Last Session, Except Converted Files")
@@ -1803,6 +1815,7 @@ if __name__ == "__main__":
     parser.add_argument("-r", "--recurse", action="store_true", default=False, help="Recurse subdirs")
     parser.add_argument("-f", "--force", action="store_true", help="Force evaluating files, even if previously renamed")
     parser.add_argument("-e", "--reverse", action="store_true", help="Reverse last session")
+    parser.add_argument("-g", "--log", action="store_true", help="Print log from {MEDIA_DATA_FILE}")
     parser.add_argument("-n", "--reset-revisions", action="store_true", help="Clear the revision history retaining the first and last entries")
     parser.add_argument("-m", "--summary", action="store_true", help=f"Create the current {SUMMARY_FILE}")
     parser.add_argument("-o", "--original", action="store_true", help="Restore original filenames and delete logs")
@@ -1841,6 +1854,7 @@ if __name__ == "__main__":
     elif args.template: create_group_templates(target_input, args.recurse)
     elif args.thumbnails: create_thumbnails(target_input, args.recurse, args.verbose)
     elif args.index: create_index(target_input, args.recurse, args.verbose)
+    elif args.log: print_media_table(target_input, args.recurse, args.verbose)
     elif args.reset_revisions: reset_revisions(target_input, args.recurse)
     elif args.reverse: reverse_last_session(target_input, args.recurse)
     elif args.original: restore_original_names(target_input, args.recurse)

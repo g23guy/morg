@@ -1,5 +1,5 @@
 #!/usr/bin/python3.12
-SVER = '1.0.5.4_dev1'
+SVER = '1.0.6'
 ##############################################################################
 # morg - Media Organizer
 # Copyright (C) 2026 Jason Record
@@ -24,7 +24,7 @@ SVER = '1.0.5.4_dev1'
 #               Overridden dates and times are written to the filesystem 
 #               access and modification times to applicable files.
 #
-# Modified:     2026 Jun 08
+# Modified:     2026 Jun 09
 #
 ##############################################################################
 #
@@ -1641,8 +1641,8 @@ def process_media(target_input, recurse, adjacent, state_arg, location_arg, desc
             else:
                 mdata[group_key][old_name] = d
 
-            gps_id = "gps-" if gps_str == "N/A" else "gps+"
-            msg(action, f"{updated_datetime[0]} {updated_datetime[1]} {gps_id}: {old_name} -> {new_name} ({source})")
+            gps_id = "-" if gps_str == "N/A" else "+"
+            msg(action, f"{updated_datetime[0]}{updated_datetime[1]}{gps_id} {old_name} -> {new_name} ({source})")
             last_date, last_source = dt, source
 
             if convert:
@@ -1732,8 +1732,8 @@ def process_media(target_input, recurse, adjacent, state_arg, location_arg, desc
                     file_eval += 1
                     file_cnt += 1
 
-                    gps_id = "gps-" if mdata[group_key][conversion_key]['gps'] == "N/A" else "gps+"
-                    msg('updated', f"{updated_datetime[0]} {updated_datetime[1]} {gps_id}: {new_name} (existing)")
+                    gps_id = "-" if mdata[group_key][conversion_key]['gps'] == "N/A" else "+"
+                    msg('updated', f"{updated_datetime[0]}{updated_datetime[1]}{gps_id} {new_name} (existing)")
                     if convert_remove and c['status'] == "success": 
                         msg('deleted', f"        : {old_name} -> Removed converted media entry")
                         mdata[group_key].pop(conversion_key)

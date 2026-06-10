@@ -1,5 +1,5 @@
 #!/usr/bin/python3.12
-SVER = '1.0.6.1'
+SVER = '1.0.6.3'
 ##############################################################################
 # morg - Media Organizer
 # Copyright (C) 2026 Jason Record
@@ -1284,11 +1284,12 @@ def create_summary(target, recurse, verbose):
         if not mdata:
             msg('error', f"File not found - {MEDIA_DATA_FILE}, run 'morg .' first")
             return
+        else:
+            backup_media_data_file(root)
         create_global_css(root)
         create_gallery_css(root)
 
         msg('summary', f"Saving summary file {SUMMARY_FILE}... ", flush=True)
-        backup_media_data_file(root)
         dtnow = datetime.now().strftime('%B %d, %Y')
         header = mdata['summary'].get('summary_header')
         summary_path = os.path.join(root, SUMMARY_FILE)
@@ -1601,7 +1602,7 @@ def process_media(target_input, recurse, adjacent, state_arg, location_arg, desc
                 if e:
                     mdata['summary']['images'] -= 1
                     mdata['summary']['total'] -= 1
-                    msg('deleted', f"        : {cover_name} -> Cover duplicate")
+                    msg('deleted', f"    {cover_name} -> Cover duplicate")
             d['rev'].append([log_time, action])
 
             if not mdata[group_key].get('address'): mdata[group_key].update({'address': address})
@@ -1669,7 +1670,7 @@ def process_media(target_input, recurse, adjacent, state_arg, location_arg, desc
                         new_path = os.path.join(root, new_name)
                         counter += 1
 
-                    msg(action, f"        : {old_name} -> ", flush=True)
+                    msg(action, f"    {old_name} -> ", flush=True)
                     if ext in ext_images_convert:
                         try:
                             with Image.open(old_path) as img:
@@ -1735,7 +1736,7 @@ def process_media(target_input, recurse, adjacent, state_arg, location_arg, desc
                     gps_id = "-" if mdata[group_key][conversion_key]['gps'] == "N/A" else "+"
                     msg('updated', f"{updated_datetime[0]}{updated_datetime[1]}{gps_id} {new_name} (existing)")
                     if convert_remove and c['status'] == "success": 
-                        msg('deleted', f"        : {old_name} -> Removed converted media entry")
+                        msg('deleted', f"    {old_name} -> Removed converted media entry")
                         mdata[group_key].pop(conversion_key)
                         os.remove(old_path)
 
@@ -1762,7 +1763,7 @@ def process_media(target_input, recurse, adjacent, state_arg, location_arg, desc
             group_key = item[0]
             media_key = item[1]
             mdata[group_key].pop(media_key, None)
-            msg('deleted', f"        : {group_key},{media_key} key -> File not found")
+            msg('deleted', f"    {group_key},{media_key} key -> File not found")
 
         empty_groups = []
         for group_key in mdata.keys():
@@ -1780,7 +1781,7 @@ def process_media(target_input, recurse, adjacent, state_arg, location_arg, desc
             filename = os.path.join(root, group_name)
             if os.path.exists(filename): os.remove(filename)
             mdata.pop(key, None)
-            msg('deleted', f"        : {key} key -> Empty group with its filename")
+            msg('deleted', f"    {key} key -> Empty group with its filename")
 
 
 #        mdata_list = list(mdata_dict.values())

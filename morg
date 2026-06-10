@@ -1,5 +1,5 @@
 #!/usr/bin/python3.12
-SVER = '1.0.6'
+SVER = '1.0.6.1'
 ##############################################################################
 # morg - Media Organizer
 # Copyright (C) 2026 Jason Record
@@ -71,7 +71,7 @@ from pydub import AudioSegment
 LOCATION_TAG = {
 'N/A': {'begin': 0, 'end': 0, 'url': 0, 'addr': "Unknown", 'gps': 'N/A'},
 'af': {'begin': 0, 'end': 0, 'url': 0, 'addr': "American Fork, UT", 'gps': 'N/A'},
-'cedar': {'begin': 0, 'end': 0, 'url': 0, 'addr': "Cedar City, UT", 'gps': 'N/A'},
+'cc': {'begin': 0, 'end': 0, 'url': 0, 'addr': "Cedar City, UT", 'gps': 'N/A'},
 'pg': {'begin': 0, 'end': 0, 'url': 0, 'addr': "Pleasant Grove, UT", 'gps': 'N/A'},
 'rc': {'begin': 0, 'end': 0, 'url': 0, 'addr': "Ridgecrest, CA", 'gps': 'N/A'},
 'sf': {'begin': 0, 'end': 0, 'url': 0, 'addr': "Spanish Fork, UT", 'gps': 'N/A'},

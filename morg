@@ -1,5 +1,5 @@
 #!/usr/bin/python3.12
-SVER = '1.0.6.6'
+SVER = '1.0.6.7'
 ##############################################################################
 # morg - Media Organizer
 # Copyright (C) 2026 Jason Record
@@ -1079,7 +1079,7 @@ def save_group_html(group_key, mdata):
                     f.write(f"""<tr id="{new_name}">\n  <td>{media_str}</td>\n  <td>{descriptor_str}  </td><td>\n<!-- media_description -->{gallery_caption}<br>{media_description}\n  </td>\n</tr>\n""")
                 else:
                     f.write(f"""<tr id="{new_name}">\n  <td>{media_str}</td>\n  <td>{descriptor_str}  </td><td>\n<!-- media_description -->{media_description}\n  </td>\n</tr>\n""")
-        f.write(f"</table>\n\n</body></html>\n")
+        f.write(f"""</table>\n\n<h4>{nav_str}</h4>\n\n</body></html>\n""")
     msg('', "Done")
 
 def create_group_templates(target, recurse):
@@ -1150,6 +1150,7 @@ def create_thumbnails(target, recurse, verbose):
                 else:
                     f.write(f"""        <div class="grid-item"><a href="{group_name}#{new_name}"><img src="{new_name}" alt="{new_name}" title="{group_title}"></a></div>\n""")
             f.write(f"""    </div>
+    <h4 style="text-align:center;">{nav_str}</h4>
 </body>
 </html>
 """)
@@ -1268,6 +1269,7 @@ def create_index(target, recurse, verbose):
         </div>
 """)
             f.write(f"""    </div>
+    <h4 style="text-align:center;">{nav_str}</h4>
         </body>
         </html>
         """)
@@ -1366,7 +1368,8 @@ def create_summary(target, recurse, verbose):
                 link_to_html = f"""<tr><td><a href="{group_name}">{group_title}</a></td></tr>"""
                 sf.write(f"{link_to_html}\n")
             sf.write(f'</table>\n')
-            sf.write(f'</body></html>\n')
+            sf.write(f"""    <h4 style="text-align:center;">{nav_str}</h4>
+</body></html>\n""")
         msg('', 'Done')
         print()
 

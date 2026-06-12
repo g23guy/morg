@@ -1,5 +1,5 @@
 #!/usr/bin/python3.12
-SVER = '1.0.6.4'
+SVER = '1.0.6.6'
 ##############################################################################
 # morg - Media Organizer
 # Copyright (C) 2026 Jason Record
@@ -1370,13 +1370,58 @@ def create_summary(target, recurse, verbose):
         msg('', 'Done')
         print()
 
-def msgd(identifier, filename, *args):
-    caller = sys._getframe(1).f_code.co_name
-    for name in args:
-        value = globals()[name]
-        var_str += f"{name}='{value}' "
-    msg_str = f"{caller}/{identifier}/{filename}: {var_str}"
-    msg('> DEBUG', msg_str)
+def integrate_subdirs(target):
+    notice("Integrating Subdirectory Media Files")
+    recurse = True
+    # start with the top directory's mediadata.json, into which subdirectory data will be integrated
+    if target['single']:
+        top_dir = target['single']
+        msg('integrate', top_dir)
+        mdata = get_media_data(top_dir)
+        if mdata:
+            backup_media_data_file(top_dir)
+        else:
+            mdata.setdefault('summary', {
+                "summary_header": "",
+                "summary_description": "",
+                "gallery_header": "",
+                "root": f"{top_dir}",
+                "extra_nav_link": "", # applies to SUMMARY_FILE and INDEX_FILE
+                "year": -1, # 0 for multi-year
+            })
+        mdata['summary'].update({"images": 0, "videos": 0, "audio": 0, "total": 0})
+
+        # integrate subdirectories
+        dir_groups = get_dir_groups(target, recurse)
+        subdata = None
+        for root, files in dir_groups.items():
+            if root == top_dir: continue
+            msg('dir', f"{root}")
+            for file_path in files:
+                ext = os.path.splitext(file_path)[-1].lower()
+                if ext in ext_all:
+                    shutil.copy(file_path, top_dir)
+                elif file_path.endswith(MEDIA_DATA_FILE):
+                    subdata = get_media_data(root)
+                    if not subdata: continue
+                    for group_key in subdata.keys():
+                        if group_key == "summary": continue
+                        if group_key in mdata:
+                            for media_key in subdata[group_key].keys():
+                                ext = os.path.splitext(media_key)[-1].lower()
+                                if not ext in ext_all: continue
+                                if not media_key in mdata[group_key]:
+                                    msg('adding', f"  {group_key}: {media_key}")
+                                    mdata[group_key][media_key] = subdata[group_key][media_key]
+                        else:
+                            msg('adding', f"  {group_key}")
+                            mdata[group_key] = subdata[group_key]
+
+        with open(os.path.join(top_dir, f"{MEDIA_DATA_FILE}"), 'w') as f:
+            json.dump(mdata, f, indent=4)
+        print()
+    else:
+        msg('error', "Specify a single target directory to integerate")
 
 def process_media(target_input, recurse, adjacent, state_arg, location_arg, description_arg, given_date, given_time, time_sequenced, forced, convert, convert_remove, default, default_maps, verbose):
     notice("Organizing Media Files")
@@ -1851,6 +1896,7 @@ if __name__ == "__main__":
     parser.add_argument("-t", "--time-sequenced", action="store_true", help="Use -T/--hhmmss time if given or the first file's time, and increment it for sebsequent files")
     parser.add_argument("-R", "--default-titles", action="store_true", help="Resets the headers, captions, and titles back to default values")
     parser.add_argument("-M", "--default-maps", action="store_true", help="Resets map links")
+    parser.add_argument("-I", "--integrate", action="store_true", help="Integrate files and {MEDIA_DATA_FILE} from subdirectories into the parent directory.")
     parser.add_argument("-v", "--verbose", action="store_true", help="Enables verbose output")
     parser.add_argument("-s", "--state", help="State tag, Unsupported characters [-._]")
     parser.add_argument("-l", "--location", help="Location tag, Unsupported characters [-.]")
@@ -1884,5 +1930,8 @@ if __name__ == "__main__":
     elif args.reset_revisions: reset_revisions(target_input, args.recurse)
     elif args.reverse: reverse_last_session(target_input, args.recurse)
     elif args.original: restore_original_names(target_input, args.recurse)
+    elif args.integrate:
+        integrate_subdirs(target_input)
+        print(f"Next: Run morg on the directory to finish updating the database\n")
     else: process_media(target_input, args.recurse, args.adjacent, args.state, args.location, args.description, args.yyyymmdd, args.hhmmss, args.time_sequenced, args.force, args.convert, args.convert_remove, args.default_titles, args.default_maps, args.verbose)
     

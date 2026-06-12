@@ -1,5 +1,5 @@
 #!/usr/bin/python3.12
-SVER = '1.0.6.3'
+SVER = '1.0.6.4'
 ##############################################################################
 # morg - Media Organizer
 # Copyright (C) 2026 Jason Record
@@ -1748,7 +1748,8 @@ def process_media(target_input, recurse, adjacent, state_arg, location_arg, desc
         if default:
             mdata['summary'].update({'summary_header': f"Summary{year_str}"})
             mdata['summary'].update({'gallery_header': f"Media Gallery{year_str}"})
-        
+
+        # Remove keys with missing filenames on the disk
         missing_keys = []
         for group_key in mdata.keys():
             for media_key in mdata[group_key].keys():
@@ -1759,12 +1760,11 @@ def process_media(target_input, recurse, adjacent, state_arg, location_arg, desc
                 if not os.path.exists(filename):
                     missing_keys.append([group_key, media_key])
 
-        for item in missing_keys:
-            group_key = item[0]
-            media_key = item[1]
+        for group_key, media_key in missing_keys:
             mdata[group_key].pop(media_key, None)
             msg('deleted', f"    {group_key},{media_key} key -> File not found")
 
+        # Removed empty group keys and their associated filenames
         empty_groups = []
         for group_key in mdata.keys():
             empty = True
@@ -1781,11 +1781,36 @@ def process_media(target_input, recurse, adjacent, state_arg, location_arg, desc
             filename = os.path.join(root, group_name)
             if os.path.exists(filename): os.remove(filename)
             mdata.pop(key, None)
-            msg('deleted', f"    {key} key -> Empty group with its filename")
+            msg('deleted', f"    {key} key -> Empty group and associated filename")
 
+        # Move cover_name data to associated audio/visual keys
+        keys_to_pop = []
+        for group_key in mdata.keys():
+            for media_key in mdata[group_key].keys():
+                tagged_base, ext = os.path.splitext(media_key)
+                if ext in ext_images:
+                    old_path = mdata[group_key][media_key].get('new_name')
+                    av_key = mdata[group_key][media_key].get('cover_name')
+                    if av_key:
+                        if av_key in mdata[group_key]:
+                            md = mdata[group_key][media_key].get('media_description')
+                            pl = mdata[group_key][media_key].get('people_list')
+                            gc = mdata[group_key][media_key].get('gallery_caption')
+                            new_path = mdata[group_key][av_key].get('cover_name')
+                            msg('rename', f"Cover file:      {old_path} -> {new_path}")
+                            os.rename(old_path, new_path)
+                            msg('copy',   f"Data:            {old_path} -> {av_key}")
+                            mdata[group_key][av_key]['media_description'] = md
+                            mdata[group_key][av_key]['people_list'] = pl
+                            mdata[group_key][av_key]['gallery_caption'] = gc
+                            keys_to_pop.append([group_key, media_key])
+                        else:
+                            msg('error', f"Invalid av_key for {group_key}/{av_key}")
 
-#        mdata_list = list(mdata_dict.values())
-#        mdata = sorted(mdata_list, key=lambda x: x["new_name"])
+        for group_key, media_key in keys_to_pop:
+            msg('remove', f"Cover duplicate: {media_key}")
+            mdata[group_key].pop(media_key, None)
+
         with open(os.path.join(root, f"{MEDIA_DATA_FILE}"), 'w') as f:
             json.dump(mdata, f, indent=4)
 

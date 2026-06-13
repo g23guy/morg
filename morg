@@ -1,5 +1,5 @@
 #!/usr/bin/python3.12
-SVER = '1.0.8'
+SVER = '1.0.8.1'
 ##############################################################################
 # morg - Media Organizer
 # Copyright (C) 2026 Jason Record
@@ -51,6 +51,7 @@ import re
 import json
 import copy
 import shutil
+from filecmp import cmp as diff
 import markdown
 import argparse
 import mimetypes
@@ -1402,9 +1403,8 @@ def integrate_subdirs(target):
             msg('dir', f"{root}")
             for file_path in files:
                 ext = os.path.splitext(file_path)[-1].lower()
-                if ext in ext_all:
-                    shutil.copy(file_path, top_dir)
-                elif file_path.endswith(MEDIA_DATA_FILE):
+                file_name = os.path.basename(file_path)
+                if file_path.endswith(MEDIA_DATA_FILE):
                     subdata = get_media_data(root)
                     if not subdata: continue
                     for group_key in subdata.keys():
@@ -1419,6 +1419,23 @@ def integrate_subdirs(target):
                         else:
                             msg('adding', f"  {group_key}")
                             mdata[group_key] = subdata[group_key]
+
+                        msg('copying', f"  {group_key}: media files")
+                        group_files = []
+                        for media_key in subdata[group_key].keys():
+                            ext = os.path.splitext(media_key)[-1].lower()
+                            if ext in ext_all:
+                                group_files.append(media_key)
+                                cover_name = subdata[group_key][media_key].get('cover_name')
+                                if cover_name: group_files.append(cover_name)
+                        for file in group_files:
+                            file_src = os.path.join(root, file)
+                            file_dst = os.path.join(top_dir, file)
+                            if os.path.exists(file_dst):
+                                if not diff(file_src, file_dst, shallow=False):
+                                    msg('error', f"  > file collision: {file_src} -> {file_dst}")
+                            else:
+                                if os.path.exists(file_src): shutil.copy(file_src, top_dir)
 
         with open(os.path.join(top_dir, f"{MEDIA_DATA_FILE}"), 'w') as f:
             json.dump(mdata, f, indent=4)

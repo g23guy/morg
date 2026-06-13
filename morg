@@ -1,5 +1,5 @@
 #!/usr/bin/python3.12
-SVER = '1.0.8.1'
+SVER = '1.0.10'
 ##############################################################################
 # morg - Media Organizer
 # Copyright (C) 2026 Jason Record
@@ -24,7 +24,7 @@ SVER = '1.0.8.1'
 #               Overridden dates and times are written to the filesystem 
 #               access and modification times to applicable files.
 #
-# Modified:     2026 Jun 12
+# Modified:     2026 Jun 13
 #
 ##############################################################################
 #

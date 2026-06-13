@@ -1,5 +1,5 @@
 #!/usr/bin/python3.12
-SVER = '1.0.10'
+SVER = '1.0.10.1'
 ##############################################################################
 # morg - Media Organizer
 # Copyright (C) 2026 Jason Record
@@ -84,7 +84,7 @@ LOCATION_TAG = {
 'stg236': {'begin': 0, 'end': 0, 'url': 1, 'addr': "345 North 2450 East #236, St George, UT 84790", 'gps': '37.11267708653555,-113.5348526180132'}, # Linda Record
 'mtl217': {'begin': 0, 'end': 0, 'url': 1, 'addr': "217A Thornwood Dr, Mt Laurel Township, NJ 08054", 'gps': '39.97355207645182,-74.87195527373382'}, # Wayne & Linda Record
 'glass244': {'begin': 0, 'end': 0, 'url': 1, 'addr': "244 Pomona Ave, Glassboro, NJ 08028", 'gps': '39.71157245713632,-75.1075983988175'}, # Wayne & Linda Record
-'cleve153': {'begin': 0, 'end': 0, 'url': 1, 'addr': "153 Heather Ln NW, Cleveland, TN 37311", 'gps': '35.17412963875532,-84.9004669604066'}, # Wayne & Linda Record
+'cl153': {'begin': 0, 'end': 0, 'url': 1, 'addr': "153 Heather Ln NW, Cleveland, TN 37311", 'gps': '35.17412963875532,-84.9004669604066'}, # Wayne & Linda Record
 'stown2': {'begin': 0, 'end': 0, 'url': 2, 'addr': "Route 2 Box 317 Moorerion Way, Shingletown CA 96088", 'gps': '40.52093621114062,-121.90813194888482'}, # Wayne & Linda Record
 'red6931': {'begin': 0, 'end': 0, 'url': 1, 'addr': "6931 Dennis Ct, Redding, CA 96001", 'gps': '40.516466510500244,-122.36567821864101'}, # Wayne & Linda Record
 'vi3005': {'begin': 0, 'end': 0, 'url': 1, 'addr': "3005 West Packwood Ct, Visalia, CA 93277", 'gps': '36.2947109176429,-119.32378558920523'}, # Wayne & Linda Record

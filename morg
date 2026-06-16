@@ -1,5 +1,5 @@
 #!/usr/bin/python3.12
-SVER = '1.0.10.1'
+SVER = '1.0.10.2'
 ##############################################################################
 # morg - Media Organizer
 # Copyright (C) 2026 Jason Record
@@ -81,7 +81,7 @@ LOCATION_TAG = {
 'tmp': {'begin': 0, 'end': 0, 'url': 1, 'addr': "", 'gps': ''},
 'stgih': {'begin': 0, 'end': 0, 'url': 1, 'addr': "1380 E Medical Center Dr, St George, UT 84790", 'gps': '37.096860970347116,-113.55399003008878'}, # Intermountain Health St George Regional Hospital
 'stg122': {'begin': 0, 'end': 0, 'url': 1, 'addr': "2050 South 1400 East, Apt A122, St George, UT 84790", 'gps': '37.073710292528766,-113.55438523101283'}, # Laura Record
-'stg236': {'begin': 0, 'end': 0, 'url': 1, 'addr': "345 North 2450 East #236, St George, UT 84790", 'gps': '37.11267708653555,-113.5348526180132'}, # Linda Record
+'stg236': {'begin': 0, 'end': 0, 'url': 1, 'addr': "345 North 2450 East Unit 236, St George, UT 84790", 'gps': '37.112574429604045,-113.53472921857238'}, # Linda Record
 'mtl217': {'begin': 0, 'end': 0, 'url': 1, 'addr': "217A Thornwood Dr, Mt Laurel Township, NJ 08054", 'gps': '39.97355207645182,-74.87195527373382'}, # Wayne & Linda Record
 'glass244': {'begin': 0, 'end': 0, 'url': 1, 'addr': "244 Pomona Ave, Glassboro, NJ 08028", 'gps': '39.71157245713632,-75.1075983988175'}, # Wayne & Linda Record
 'cl153': {'begin': 0, 'end': 0, 'url': 1, 'addr': "153 Heather Ln NW, Cleveland, TN 37311", 'gps': '35.17412963875532,-84.9004669604066'}, # Wayne & Linda Record
@@ -91,7 +91,7 @@ LOCATION_TAG = {
 'rc825': {'begin': 0, 'end': 0, 'url': 1, 'addr': "825 Paradise Drive, Ridgecrest, CA 93555", 'gps': '35.636618004991874,-117.69183314365613'}, # Jason & Ynez Record
 'orem1214': {'begin': 0, 'end': 0, 'url': 1, 'addr': "1214 South 620 West, Orem, UT 84058", 'gps': '40.27535323885997,-111.71009564606535'}, # Lorielle & Nicolle Record
 'provo735': {'begin': 1988, 'end': 1989, 'url': 1, 'addr': "735 North 440 West, Provo, UT 84601", 'gps': '40.243718701168504,-111.66646033139529'}, # Jason & Sheri Record
-'provo6b': {'begin': 1989, 'end': 1992, 'url': 2, 'addr': "Wymount Terrace 6B #344, Provo, UT 84604", 'gps': '40.25825145909716,-111.63865203744004'}, # Jason & Sheri Record
+'provo6b': {'begin': 1989, 'end': 1992, 'url': 1, 'addr': "Wymount Terrace 6B Unit 344, Provo, UT 84604", 'gps': '40.25544391386171,-111.64078477599932'}, # Jason & Sheri Record
 'provo189': {'begin': 1992, 'end': 1993, 'url': 1, 'addr': "189 South 500 East, Provo, UT 84606", 'gps': '40.23126560116374,-111.64974833062708'}, # Jason & Sheri Record
 'pg386': {'begin': 1993, 'end': 1994, 'url': 1, 'addr': "386 South 300 East St, Pleasant Grove, UT 84062", 'gps': '40.359401204518456,-111.73614891789813'}, # Jason & Sheri Record
 'orem280': {'begin': 1994, 'end': 1995, 'url': 1, 'addr': "280 Garden Park Dr, Orem, UT 84057", 'gps': '40.299338871939945,-111.70275288906478'}, # Jason & Sheri Record
@@ -111,7 +111,7 @@ ext_image_str = "jpg|jpeg|png|bmp|tif|tiff|heic|webp|pgm|ppm|pmb|pnm|jfif|jp2|j2
 #ext_image_convert_str = "heic|tiff|tif"
 ext_image_convert_str = "heic|tiff|tif|png|bmp|pgm|ppm|pmb|pnm|jfif|jp2|j2k|xcf"
 ext_video_str = "mp4|mov|mpg|avi|mkv|m4v|wmv|webm|3gp"
-ext_video_convert_str = "mov|avi|mkv|m4v|wmv|webm|3gp"
+ext_video_convert_str = "mov|mpg|avi|mkv|m4v|wmv|webm|3gp"
 ext_sound_str = "mp3|wav|snd|m4a|aac|aiff|flac|ogg|amr|mp2"
 ext_sound_convert_str = "snd|m4a|aac|aiff|flac|amr|mp2"
 ext_html_str = "html|htm"
@@ -1466,6 +1466,7 @@ def process_media(target_input, recurse, adjacent, state_arg, location_arg, desc
             "year": -1, # 0 for multi-year
         })
         mdata['summary'].update({"images": 0, "videos": 0, "audio": 0, "total": 0})
+        if default: mdata['summary']['year'] = -1
 
         last_date, last_source = None, None
         for old_path in sorted(files):
@@ -1523,6 +1524,7 @@ def process_media(target_input, recurse, adjacent, state_arg, location_arg, desc
                 "year": -1,
                 "extra_nav_link": "", # applies to group_name files
             })
+            if default: mdata[group_key]['year'] = -1
 
 #            print(f"1>                    {old_name}, gk={group_key}, ogk={old_group_key}, fgk={found_group_key}, fmk={found_media_key}")
             s_val = state_arg if state_arg is not None else (match.group(2) if match else (mdata[group_key][old_name].get('state', '') if old_name in mdata[group_key] else ''))
@@ -1670,8 +1672,12 @@ def process_media(target_input, recurse, adjacent, state_arg, location_arg, desc
                     msg('deleted', f"    {cover_name} -> Cover duplicate")
             d['rev'].append([log_time, action])
 
-            if not mdata[group_key].get('address'): mdata[group_key].update({'address': address})
-            if not mdata[group_key].get('address_url') and map_style == 1: mdata[group_key].update({'address_url': map_url})
+            if default_maps:
+                mdata[group_key].update({'address': address})
+                if map_style == 1: mdata[group_key].update({'address_url': map_url})
+            else:
+                if not mdata[group_key].get('address'): mdata[group_key].update({'address': address})
+                if not mdata[group_key].get('address_url') and map_style == 1: mdata[group_key].update({'address_url': map_url})
 
             group_year = mdata[group_key].get('year')
             if group_year < 0:

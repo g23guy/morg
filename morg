@@ -1,5 +1,5 @@
 #!/usr/bin/python3.12
-SVER = '1.0.10.2'
+SVER = '1.0.10.5'
 ##############################################################################
 # morg - Media Organizer
 # Copyright (C) 2026 Jason Record
@@ -103,7 +103,7 @@ LOCATION_TAG = {
 'salem934': {'begin': 2017, 'end': 2018, 'url': 1, 'addr': "934 South 140 East, Salem, UT 84653", 'gps': '40.04021877168592,-111.67113360191078'}, # Jason & Sheri Record
 'hurr802': {'begin': 2018, 'end': 2020, 'url': 1, 'addr': "802 North 300 West, Hurricane, UT 84737", 'gps': '37.188494405724,-113.29338910648485'}, # Jason & Sheri Record
 'wash3905': {'begin': 2020, 'end': 2026, 'url': 1, 'addr': "3905 South Saddleback Road, Washington, UT 84780", 'gps': '37.07830998533132,-113.50237541801445'}, # Jason & Sheri Record
-'cedar2944': {'begin': 2026, 'end': 0, 'url': 1, 'addr': "2944 West Ezra Drive, Cedar City, UT 84720", 'gps': '37.669544927549815,-113.1074200026512'}, # Jason & Sheri Record
+'cc2944': {'begin': 2026, 'end': 0, 'url': 1, 'addr': "2944 West Ezra Drive, Cedar City, UT 84720", 'gps': '37.669544927549815,-113.1074200026512'}, # Jason & Sheri Record
 }
 
 # Supported extensions
@@ -1001,6 +1001,7 @@ def save_group_html(group_key, mdata):
     msg(action, f"Saving grouped file {group_name}... ", flush=True)
     grouped_path = f"{root}/{group_name}"
     nav_str = get_navigation_str(group_key, root, mdata)
+    sorted_mdata = dict(sorted(mdata.items()))
     with open(grouped_path, 'w') as f:
         f.write(f"""<!DOCTYPE html><html><head><meta name="robots" content="none">\n""")
         f.write(f"""<link rel="stylesheet" type="text/css" href="{CSS_FILE_GLOBAL}">\n""")
@@ -1016,7 +1017,7 @@ def save_group_html(group_key, mdata):
         f.write(f"<h3>Description: {group_title}</h3>\n")
         f.write(f"""<h4>{nav_str}</h4>\n\n""")
         f.write(f"""<p>\n<!-- group_description -->{group_description}\n</p>\n\n<table class="main">\n""")
-        for media_key in mdata[group_key].keys():
+        for media_key in sorted_mdata[group_key].keys():
             ext = os.path.splitext(media_key)[-1].lower()
             if not ext in ext_all: continue
             new_name = mdata[group_key][media_key].get('new_name')
@@ -1466,6 +1467,7 @@ def process_media(target_input, recurse, adjacent, state_arg, location_arg, desc
             "year": -1, # 0 for multi-year
         })
         mdata['summary'].update({"images": 0, "videos": 0, "audio": 0, "total": 0})
+        mdata['summary'].update({"root": f"{root}"})
         if default: mdata['summary']['year'] = -1
 
         last_date, last_source = None, None

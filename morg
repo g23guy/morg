@@ -1,5 +1,5 @@
 #!/usr/bin/python3.12
-SVER = '1.0.10.5'
+SVER = '1.0.10.6'
 ##############################################################################
 # morg - Media Organizer
 # Copyright (C) 2026 Jason Record
@@ -1666,7 +1666,8 @@ def process_media(target_input, recurse, adjacent, state_arg, location_arg, desc
                 if not d.get('map_style'): d.update({'map_style': map_style})
             if ext in ext_videos or ext in ext_sounds:
                 cover_name = f"{tagged_base}.jpg"
-                d.update({'duration': get_av_duration(new_name), 'cover_name': cover_name})
+                new_path = os.path.join(root, new_name)
+                d.update({'duration': get_av_duration(new_path), 'cover_name': cover_name})
                 e = mdata[group_key].pop(cover_name, None)
                 if e:
                     mdata['summary']['images'] -= 1

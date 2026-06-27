@@ -1,5 +1,5 @@
 #!/usr/bin/python3.12
-SVER = '1.0.12'
+SVER = '1.0.13.1'
 ##############################################################################
 # morg - Media Organizer
 # Copyright (C) 2026 Jason Record
@@ -1451,7 +1451,7 @@ def process_media(target_input, recurse, adjacent, state_arg, location_arg, desc
     file_cnt = 0
     file_eval = 0
     gps_str = ''
-    if given_date or given_time or time_sequenced: overridden = True
+    if given_date or given_time or time_sequenced > 0: overridden = True
 
     dir_groups = get_dir_groups(target_input, recurse)
     for root, files in dir_groups.items():
@@ -1584,11 +1584,11 @@ def process_media(target_input, recurse, adjacent, state_arg, location_arg, desc
             renamed = False
             status = 'success'
             try:
-                if time_sequenced:
+                if time_sequenced > 0:
                     if not given_time:
                         given_time = datetime.strftime(dt, "%H%M%S")
                     current_time = datetime.strptime(given_time, "%H%M%S")
-                    current_time += timedelta(seconds=4)
+                    current_time += timedelta(seconds=time_sequenced)
                     given_time = current_time.strftime("%H%M%S")
             except Exception as e:
                 msg('error', f"process_media,datetime {old_name}: {e}")
@@ -1922,11 +1922,11 @@ if __name__ == "__main__":
     parser.add_argument("-p", "--template", action="store_true", help="Creates a group description template file for the file given")
     parser.add_argument("-u", "--thumbnails", action="store_true", help=f"Creates a {THUMBNAIL_FILE} file")
     parser.add_argument("-i", "--index", action="store_true", help=f"Creates an {INDEX_FILE} for the directory gallery of images")
-    parser.add_argument("-t", "--time-sequenced", action="store_true", help="Use -T/--hhmmss time if given or the first file's time, and increment it for sebsequent files")
     parser.add_argument("-R", "--default-titles", action="store_true", help="Resets the headers, captions, and titles back to default values")
     parser.add_argument("-M", "--default-maps", action="store_true", help="Resets map links")
     parser.add_argument("-I", "--integrate", action="store_true", help="Integrate files and {MEDIA_DATA_FILE} from subdirectories into the parent directory.")
     parser.add_argument("-v", "--verbose", action="store_true", help="Enables verbose output")
+    parser.add_argument("-t", "--time-sequenced", type=int, nargs='?', const=4, default=0, help="Use -T/--hhmmss time if given or the first file's time, and increments by the default of 4 seconds for sebsequent files")
     parser.add_argument("-s", "--state", help="State tag, Unsupported characters [-._]")
     parser.add_argument("-l", "--location", help="Location tag, Unsupported characters [-.]")
     parser.add_argument("-d", "--description", help="Description tag, Unsupported characters [-.]")

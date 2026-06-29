@@ -1,5 +1,5 @@
 #!/usr/bin/python3.12
-SVER = '1.0.13.1'
+SVER = '1.0.13.3'
 ##############################################################################
 # morg - Media Organizer
 # Copyright (C) 2026 Jason Record
@@ -457,11 +457,11 @@ def print_media_table(target, recurse, verbose):
         w_dtsrc = max(len(e[5]) for e in report_data)
         w_dtup = 3
 
-        header = f" {'MFG':<{w_dtup}} | {'LOGGED':<{w_log}} | {'ACTION':<{w_action}} | {'SOURCE':<{w_dtsrc}} | {'CURRENT':<{w_curr}} | {'PREVIOUS':<{w_prev}}"
+        header = f" {'MFG':<{w_dtup}} | {'LOGGED':<{w_log}} | {'ACTION':<{w_action}} | {'SOURCE':<{w_dtsrc}} | {'PREVIOUS':<{w_prev}} | {'CURRENT':<{w_curr}}"
         print(header)
         print("-" * len(header))
         for curr, prev, logged, action, dtup, dtsrc in report_data:
-            print(f" {dtup:<{w_dtup}} | {logged:<{w_log}} | {action:<{w_action}} | {dtsrc:<{w_dtsrc}} | {curr:<{w_curr}} | {prev:<{w_prev}}")
+            print(f" {dtup:<{w_dtup}} | {logged:<{w_log}} | {action:<{w_action}} | {dtsrc:<{w_dtsrc}} | {prev:<{w_prev}} | {curr:<{w_curr}}")
         print()
 
 def reverse_last_session(target, recurse):
@@ -1484,6 +1484,7 @@ def process_media(target_input, recurse, adjacent, state_arg, location_arg, desc
             found_group_key = False
             found_media_key = False
             if not ext in ext_all: continue
+            os.chmod(old_path, 0o644)
             if description_arg is not None:
                 d_val = description_arg
             else:

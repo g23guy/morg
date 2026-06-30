@@ -1,5 +1,5 @@
 #!/usr/bin/python3.12
-SVER = '1.0.13.3'
+SVER = '1.0.13.4'
 ##############################################################################
 # morg - Media Organizer
 # Copyright (C) 2026 Jason Record
@@ -1530,8 +1530,8 @@ def process_media(target_input, recurse, adjacent, state_arg, location_arg, desc
             if default: mdata[group_key]['year'] = -1
 
 #            print(f"1>                    {old_name}, gk={group_key}, ogk={old_group_key}, fgk={found_group_key}, fmk={found_media_key}")
-            s_val = state_arg if state_arg is not None else (match.group(2) if match else (mdata[group_key][old_name].get('state', '') if old_name in mdata[group_key] else ''))
-            l_val = location_arg if location_arg is not None else (match.group(3) if match else (mdata[group_key][old_name].get('location', '') if old_name in mdata[group_key] else ''))
+            s_val = state_arg if state_arg is not None else (match.group(2) if match else (mdata[group_key][old_name].get('state', '') if old_name in mdata[group_key] else 'us'))
+            l_val = location_arg if location_arg is not None else (match.group(3) if match else (mdata[group_key][old_name].get('location', '') if old_name in mdata[group_key] else 'unknown'))
             if default:
                 mdata[group_key].update({'group_title': group_title})
 

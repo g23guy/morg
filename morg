@@ -1797,7 +1797,7 @@ def process_media(target_input, recurse, adjacent, state_arg, location_arg, desc
 
                     c['orig_name'] = new_name
                     c['new_name'] = new_name
-                    c['prev_name'] = new_name
+                    c['prev_name'] = old_name
                     c['mime_type'] = mime_type_list
                     c['updated_datetime'].update({'meta': updated_datetime[0], 'fs': updated_datetime[1]})
                     c['date_used'] = dt.isoformat()

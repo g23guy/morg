@@ -1,5 +1,5 @@
 #!/usr/bin/python3.12
-SVER = '1.0.14'
+SVER = '1.0.15.1'
 ##############################################################################
 # morg - Media Organizer
 # Copyright (C) 2026 Jason Record
@@ -70,40 +70,42 @@ from pydub import AudioSegment
 # url 1: https://www.google.com/maps/place/street+city+state+zip/@lat,lon,200m
 # url 2: https://www.google.com/maps/search/?api=1&query=lat,lon
 LOCATION_TAG = {
-'N/A': {'begin': 0, 'end': 0, 'url': 0, 'addr': "Unknown", 'gps': 'N/A'},
-'af': {'begin': 0, 'end': 0, 'url': 0, 'addr': "American Fork, UT", 'gps': 'N/A'},
-'cc': {'begin': 0, 'end': 0, 'url': 0, 'addr': "Cedar City, UT", 'gps': 'N/A'},
-'pg': {'begin': 0, 'end': 0, 'url': 0, 'addr': "Pleasant Grove, UT", 'gps': 'N/A'},
-'rc': {'begin': 0, 'end': 0, 'url': 0, 'addr': "Ridgecrest, CA", 'gps': 'N/A'},
-'sf': {'begin': 0, 'end': 0, 'url': 0, 'addr': "Spanish Fork, UT", 'gps': 'N/A'},
-'slc': {'begin': 0, 'end': 0, 'url': 0, 'addr': "Salt Lake City, UT", 'gps': 'N/A'},
-'stg': {'begin': 0, 'end': 0, 'url': 0, 'addr': "St George, UT", 'gps': 'N/A'},
-'tmp': {'begin': 0, 'end': 0, 'url': 1, 'addr': "", 'gps': ''},
-'stgih': {'begin': 0, 'end': 0, 'url': 1, 'addr': "1380 E Medical Center Dr, St George, UT 84790", 'gps': '37.096860970347116,-113.55399003008878'}, # Intermountain Health St George Regional Hospital
-'stg122': {'begin': 0, 'end': 0, 'url': 1, 'addr': "2050 South 1400 East, Apt A122, St George, UT 84790", 'gps': '37.073710292528766,-113.55438523101283'}, # Laura Record
-'stg236': {'begin': 0, 'end': 0, 'url': 1, 'addr': "345 North 2450 East Unit 236, St George, UT 84790", 'gps': '37.112574429604045,-113.53472921857238'}, # Linda Record
-'mtl217': {'begin': 0, 'end': 0, 'url': 1, 'addr': "217A Thornwood Dr, Mt Laurel Township, NJ 08054", 'gps': '39.97355207645182,-74.87195527373382'}, # Wayne & Linda Record
-'glass244': {'begin': 0, 'end': 0, 'url': 1, 'addr': "244 Pomona Ave, Glassboro, NJ 08028", 'gps': '39.71157245713632,-75.1075983988175'}, # Wayne & Linda Record
-'cl153': {'begin': 0, 'end': 0, 'url': 1, 'addr': "153 Heather Ln NW, Cleveland, TN 37311", 'gps': '35.17412963875532,-84.9004669604066'}, # Wayne & Linda Record
-'stown2': {'begin': 0, 'end': 0, 'url': 2, 'addr': "Route 2 Box 317 Moorerion Way, Shingletown CA 96088", 'gps': '40.52093621114062,-121.90813194888482'}, # Wayne & Linda Record
-'red6931': {'begin': 0, 'end': 0, 'url': 1, 'addr': "6931 Dennis Ct, Redding, CA 96001", 'gps': '40.516466510500244,-122.36567821864101'}, # Wayne & Linda Record
-'vi3005': {'begin': 0, 'end': 0, 'url': 1, 'addr': "3005 West Packwood Ct, Visalia, CA 93277", 'gps': '36.2947109176429,-119.32378558920523'}, # Wayne & Linda Record
-'rc825': {'begin': 0, 'end': 0, 'url': 1, 'addr': "825 Paradise Drive, Ridgecrest, CA 93555", 'gps': '35.636618004991874,-117.69183314365613'}, # Jason & Ynez Record
-'orem1214': {'begin': 0, 'end': 0, 'url': 1, 'addr': "1214 South 620 West, Orem, UT 84058", 'gps': '40.27535323885997,-111.71009564606535'}, # Lorielle & Nicolle Record
-'provo735': {'begin': 1988, 'end': 1989, 'url': 1, 'addr': "735 North 440 West, Provo, UT 84601", 'gps': '40.243718701168504,-111.66646033139529'}, # Jason & Sheri Record
-'provo6b': {'begin': 1989, 'end': 1992, 'url': 1, 'addr': "Wymount Terrace 6B Unit 344, Provo, UT 84604", 'gps': '40.25544391386171,-111.64078477599932'}, # Jason & Sheri Record
-'provo189': {'begin': 1992, 'end': 1993, 'url': 1, 'addr': "189 South 500 East, Provo, UT 84606", 'gps': '40.23126560116374,-111.64974833062708'}, # Jason & Sheri Record
-'pg386': {'begin': 1993, 'end': 1994, 'url': 1, 'addr': "386 South 300 East St, Pleasant Grove, UT 84062", 'gps': '40.359401204518456,-111.73614891789813'}, # Jason & Sheri Record
-'orem280': {'begin': 1994, 'end': 1995, 'url': 1, 'addr': "280 Garden Park Dr, Orem, UT 84057", 'gps': '40.299338871939945,-111.70275288906478'}, # Jason & Sheri Record
-'af412': {'begin': 1995, 'end': 1999, 'url': 1, 'addr': "412 North 520 West, American Fork, UT 84003", 'gps': '40.385723114562275,-111.81170161789726'}, # Jason & Sheri Record
-'salem381': {'begin': 1999, 'end': 2004, 'url': 1, 'addr': "381 West 90 South, Salem, UT 84653", 'gps': '40.05388425398461,-111.68101740256654'}, # Jason & Sheri Record
-'sf2344': {'begin': 2004, 'end': 2012, 'url': 1, 'addr': "2344 East 1120 South, Spanish Fork, UT 84660", 'gps': '40.09501897424211,-111.61557782129908'}, # Jason & Sheri Record
-'sf2087': {'begin': 2012, 'end': 2016, 'url': 1, 'addr': "2087 East 30 North, Spanish Fork, UT 84660", 'gps': '40.11059005306335,-111.61939406023592'}, # Jason & Sheri Record
-'payson322': {'begin': 2016, 'end': 2017, 'url': 1, 'addr': "1045 South 1700 West #322, Payson, UT 84651", 'gps': '40.027153115187446,-111.76237033696721'}, # Jason & Sheri Record
-'salem934': {'begin': 2017, 'end': 2018, 'url': 1, 'addr': "934 South 140 East, Salem, UT 84653", 'gps': '40.04021877168592,-111.67113360191078'}, # Jason & Sheri Record
-'hurr802': {'begin': 2018, 'end': 2020, 'url': 1, 'addr': "802 North 300 West, Hurricane, UT 84737", 'gps': '37.188494405724,-113.29338910648485'}, # Jason & Sheri Record
-'wash3905': {'begin': 2020, 'end': 2026, 'url': 1, 'addr': "3905 South Saddleback Road, Washington, UT 84780", 'gps': '37.07830998533132,-113.50237541801445'}, # Jason & Sheri Record
-'cc2944': {'begin': 2026, 'end': 0, 'url': 1, 'addr': "2944 West Ezra Drive, Cedar City, UT 84720", 'gps': '37.669544927549815,-113.1074200026512'}, # Jason & Sheri Record
+'N/A': {'grp': 0, 'begin': 0, 'end': 0, 'url': 0, 'addr': "", 'city': 'Unknown', 'state': 'US', 'zip': '', 'gps': 'N/A', 'who': ""},
+'af': {'grp': 0, 'begin': 0, 'end': 0, 'url': 0, 'addr': "", 'city': 'American Fork', 'state': 'UT', 'zip': '', 'gps': 'N/A', 'who': ""},
+'cc': {'grp': 0, 'begin': 0, 'end': 0, 'url': 0, 'addr': "", 'city': 'Cedar City', 'state': 'UT', 'zip': '', 'gps': 'N/A', 'who': ""},
+'pg': {'grp': 0, 'begin': 0, 'end': 0, 'url': 0, 'addr': "", 'city': 'Pleasant Grove', 'state': 'UT', 'zip': '', 'gps': 'N/A', 'who': ""},
+'rc': {'grp': 0, 'begin': 0, 'end': 0, 'url': 0, 'addr': "", 'city': 'Ridgecrest', 'state': 'CA', 'zip': '', 'gps': 'N/A', 'who': ""},
+'sf': {'grp': 0, 'begin': 0, 'end': 0, 'url': 0, 'addr': "", 'city': 'Spanish Fork', 'state': 'UT', 'zip': '', 'gps': 'N/A', 'who': ""},
+'slc': {'grp': 0, 'begin': 0, 'end': 0, 'url': 0, 'addr': "", 'city': 'Salt Lake City', 'state': 'UT', 'zip': '', 'gps': 'N/A', 'who': ""},
+'stg': {'grp': 0, 'begin': 0, 'end': 0, 'url': 0, 'addr': "", 'city': 'St George', 'state': 'UT', 'zip': '', 'gps': 'N/A', 'who': ""},
+'tmp': {'grp': 0, 'begin': 0, 'end': 0, 'url': 1, 'addr': "", 'city': '', 'state': 'UT', 'zip': '', 'gps': '', 'who': ""},
+'stgih': {'grp': 10, 'begin': 0, 'end': 0, 'url': 1, 'addr': "1380 E Medical Center Dr", 'city': 'St George', 'state': 'UT', 'zip': '84790', 'gps': '37.096860970347116,-113.55399003008878', 'who': "St George Regional Hospital"},
+'orem1214': {'grp': 20, 'begin': 2025, 'end': 2026, 'url': 1, 'addr': "1214 South 620 West", 'city': 'Orem', 'state': 'UT', 'zip': '84058', 'gps': '40.27535323885997,-111.71009564606535', 'who': "Lorielle & Nicolle Record"},
+'hs505': {'grp': 21, 'begin': 0, 'end': 0, 'url': 1, 'addr': "505 Valley Loop", 'city': 'Heber Springs', 'state': 'AR', 'zip': '72543', 'gps': '35.4668324,-91.9610816', 'who': "Nicolle with Ray & Evette Simpson"},
+'stown2': {'grp': 40, 'begin': 0, 'end': 0, 'url': 2, 'addr': "Route 2 Box 317 Moorerion Way", 'city': 'Shingletown', 'state': 'CA', 'zip': '96088', 'gps': '40.52093621114062,-121.90813194888482', 'who': "Wayne & Linda Record"},
+'red6931': {'grp': 41, 'begin': 0, 'end': 0, 'url': 1, 'addr': "6931 Dennis Ct", 'city': 'Redding', 'state': 'CA', 'zip': '96001', 'gps': '40.516466510500244,-122.36567821864101', 'who': "Wayne & Linda Record"},
+'vi3005': {'grp': 42, 'begin': 0, 'end': 0, 'url': 1, 'addr': "3005 West Packwood Ct", 'city': 'Visalia', 'state': 'CA', 'zip': '93277', 'gps': '36.2947109176429,-119.32378558920523', 'who': "Wayne & Linda Record"},
+'cl153': {'grp': 43, 'begin': 0, 'end': 0, 'url': 1, 'addr': "153 Heather Ln NW", 'city': 'Cleveland', 'state': 'TN', 'zip': '37311', 'gps': '35.17412963875532,-84.9004669604066', 'who': "Wayne & Linda Record"},
+'glass244': {'grp': 44, 'begin': 0, 'end': 0, 'url': 1, 'addr': "244 Pomona Ave", 'city': 'Glassboro', 'state': 'NJ', 'zip': '08028', 'gps': '39.71157245713632,-75.1075983988175', 'who': "Wayne & Linda Record"},
+'mtl217': {'grp': 45, 'begin': 0, 'end': 0, 'url': 1, 'addr': "217A Thornwood Dr", 'city': 'Mt Laurel Township', 'state': 'NJ', 'zip': '08054', 'gps': '39.97355207645182,-74.87195527373382', 'who': "Wayne & Linda Record"},
+'stg236': {'grp': 46, 'begin': 2025, 'end': 0, 'url': 1, 'addr': "345 North 2450 East Unit 236", 'city': 'St George', 'state': 'UT', 'zip': '84790', 'gps': '37.112574429604045,-113.53472921857238', 'who': "Linda Record"}, 
+'stg122': {'grp': 50, 'begin': 2025, 'end': 0, 'url': 1, 'addr': "2050 South 1400 East, Apt A122", 'city': 'St George', 'state': 'UT', 'zip': '84790', 'gps': '37.073710292528766,-113.55438523101283', 'who': "Laura Record"},
+'rc825': {'grp': 60, 'begin': 0, 'end': 0, 'url': 1, 'addr': "825 Paradise Drive", 'city': 'Ridgecrest', 'state': 'CA', 'zip': '93555', 'gps': '35.636618004991874,-117.69183314365613', 'who': "Jason & Ynez Record"},
+'af574': {'grp': 101, 'begin': 2026, 'end': 0, 'url': 1, 'addr': "574 East 620 North", 'city': 'American Fork', 'state': 'UT', 'zip': '84003', 'gps': '40.389206316808334,-111.78321570668147', 'who': "Lorielle Record"},
+'provo735': {'grp': 102, 'begin': 1988, 'end': 1989, 'url': 1, 'addr': "735 North 440 West", 'city': 'Provo', 'state': 'UT', 'zip': '84601', 'gps': '40.243718701168504,-111.66646033139529', 'who': "Jason & Sheri Record"},
+'provo6b': {'grp': 103, 'begin': 1989, 'end': 1992, 'url': 1, 'addr': "Wymount Terrace 6B Unit 344", 'city': 'Provo', 'state': 'UT', 'zip': '84604', 'gps': '40.25544391386171,-111.64078477599932', 'who': "Jason & Sheri Record"},
+'provo189': {'grp': 104, 'begin': 1992, 'end': 1993, 'url': 1, 'addr': "189 South 500 East", 'city': 'Provo', 'state': 'UT', 'zip': '84606', 'gps': '40.23126560116374,-111.64974833062708', 'who': "Jason & Sheri Record"},
+'pg386': {'grp': 105, 'begin': 1993, 'end': 1994, 'url': 1, 'addr': "386 South 300 East", 'city': 'Pleasant Grove', 'state': 'UT', 'zip': '84062', 'gps': '40.359401204518456,-111.73614891789813', 'who': "Jason & Sheri Record"},
+'orem280': {'grp': 106, 'begin': 1994, 'end': 1995, 'url': 1, 'addr': "280 Garden Park Dr", 'city': 'Orem', 'state': 'UT', 'zip': '84057', 'gps': '40.299338871939945,-111.70275288906478', 'who': "Jason & Sheri Record"},
+'af412': {'grp': 107, 'begin': 1995, 'end': 1999, 'url': 1, 'addr': "412 North 520 West", 'city': 'American Fork', 'state': 'UT', 'zip': '84003', 'gps': '40.385723114562275,-111.81170161789726', 'who': "Jason & Sheri Record"},
+'salem381': {'grp': 108, 'begin': 1999, 'end': 2004, 'url': 1, 'addr': "381 West 90 South", 'city': 'Salem', 'state': 'UT', 'zip': '84653', 'gps': '40.05388425398461,-111.68101740256654', 'who': "Jason & Sheri Record"},
+'sf2344': {'grp': 109, 'begin': 2004, 'end': 2012, 'url': 1, 'addr': "2344 East 1120 South", 'city': 'Spanish Fork', 'state': 'UT', 'zip': '84660', 'gps': '40.09501897424211,-111.61557782129908', 'who': "Jason & Sheri Record"},
+'sf2087': {'grp': 110, 'begin': 2012, 'end': 2016, 'url': 1, 'addr': "2087 East 30 North", 'city': 'Spanish Fork', 'state': 'UT', 'zip': '84660', 'gps': '40.11059005306335,-111.61939406023592', 'who': "Jason & Sheri Record"},
+'payson322': {'grp': 111, 'begin': 2016, 'end': 2017, 'url': 1, 'addr': "1045 South 1700 West #322", 'city': 'Payson', 'state': 'UT', 'zip': '84651', 'gps': '40.027153115187446,-111.76237033696721', 'who': "Jason & Sheri Record"},
+'salem934': {'grp': 112, 'begin': 2017, 'end': 2018, 'url': 1, 'addr': "934 South 140 East", 'city': 'Salem', 'state': 'UT', 'zip': '84653', 'gps': '40.04021877168592,-111.67113360191078', 'who': "Jason & Sheri Record"},
+'hurr802': {'grp': 113, 'begin': 2018, 'end': 2020, 'url': 1, 'addr': "802 North 300 West", 'city': 'Hurricane', 'state': 'UT', 'zip': '84737', 'gps': '37.188494405724,-113.29338910648485', 'who': "Jason & Sheri Record"},
+'wash3905': {'grp': 114, 'begin': 2020, 'end': 2026, 'url': 1, 'addr': "3905 South Saddleback Road", 'city': 'Washington', 'state': 'UT', 'zip': '84780', 'gps': '37.07830998533132,-113.50237541801445', 'who': "Jason & Sheri Record"},
+'cc2944': {'grp': 115, 'begin': 2026, 'end': 0, 'url': 1, 'addr': "2944 West Ezra Drive", 'city': 'Cedar City', 'state': 'UT', 'zip': '84720', 'gps': '37.669544927549815,-113.1074200026512', 'who': "Jason & Sheri Record"},
 }
 
 # Supported extensions
@@ -464,6 +466,33 @@ def print_media_table(target, recurse, verbose):
             print(f" {dtup:<{w_dtup}} | {logged:<{w_log}} | {action:<{w_action}} | {dtsrc:<{w_dtsrc}} | {prev:<{w_prev}} | {curr:<{w_curr}}")
         print()
 
+def print_address_book():
+    """Prints the LOCATION_TAG address book."""
+    print("\nADDRESS BOOK")
+    report_data = []
+    for key in LOCATION_TAG.keys():
+        grp = LOCATION_TAG[key]['grp']
+        addr = LOCATION_TAG[key]['addr']
+        city = LOCATION_TAG[key]['city']
+        state = LOCATION_TAG[key]['state']
+        who = LOCATION_TAG[key]['who']
+        report_data.append([grp, city, state, addr, key, who])
+    report_data = sorted(report_data)
+
+    # Calculate widths based on content
+    w_city = max(len(e[1]) for e in report_data)
+    w_state = max(len(e[2]) for e in report_data)
+    w_addr = max(len(e[3]) for e in report_data)
+    w_key = max(len(e[4]) for e in report_data)
+    w_who = max(len(e[5]) for e in report_data)
+
+    header = f" {'KEY':<{w_key}} | {'ADDRESS':<{w_addr}} | {'CITY':<{w_city}} | {'ST':<{w_state}} | {'WHO':<{w_who}}"
+    print(header)
+    print("-" * len(header))
+    for grp, city, state, addr, key, who in report_data:
+        print(f" {key:<{w_key}} | {addr:<{w_addr}} | {city:<{w_city}} | {state:<{w_state}} | {who:<{w_who}}")
+    print()
+
 def reverse_last_session(target, recurse):
     notice("Restoring Media Files from Last Session, Except Converted Files")
     dir_groups = get_dir_groups(target, recurse)
@@ -586,7 +615,8 @@ def get_gpsurl(gps_str, l_val):
             if gps_str != "N/A":
                 if LOCATION_TAG[l_val]['url'] == 1:
                     # url 1: https://www.google.com/maps/place/street+city+state+zip/@lat,lon,200m
-                    place = LOCATION_TAG[l_val]['addr'].replace(" ", "+")
+                    address = f"{LOCATION_TAG[l_val]['addr']}, {LOCATION_TAG[l_val]['city']}, {LOCATION_TAG[l_val]['state']} {LOCATION_TAG[l_val]['zip']}"
+                    place = address.replace(" ", "+")
                     if place != "Unknown":
                         gps_url = f"{URL_BASE}/place/{place}/@{gps_str},{map_height}"
                         style = 1
@@ -1618,7 +1648,7 @@ def process_media(target_input, recurse, adjacent, state_arg, location_arg, desc
             file_year = get_year(new_name)
             map_url, map_style = get_gpsurl(gps_str, l_val)
             if l_val in LOCATION_TAG:
-                address = LOCATION_TAG[l_val]['addr']
+                address = f"{LOCATION_TAG[l_val]['addr']}, {LOCATION_TAG[l_val]['city']}, {LOCATION_TAG[l_val]['state']} {LOCATION_TAG[l_val]['zip']}"
                 first_year = LOCATION_TAG[l_val]['begin']
                 last_year = LOCATION_TAG[l_val]['end']
             elif s_val == None and l_val == None and d_val == None:
@@ -1908,7 +1938,7 @@ if __name__ == "__main__":
                     ,
         formatter_class=argparse.RawTextHelpFormatter
     )
-    parser.add_argument("file", nargs='+', help="Target folder or file(s) (e.g. /media/*.jpg)")
+    parser.add_argument("file", nargs='*', default=['__e__'], help="Target folder or file(s) (e.g. /media/*.jpg)")
     parser.add_argument("-a", "--adjacent", action="store_true", help="Adjacent date logic")
     parser.add_argument("-b", "--build", action="store_true", help="Build the directory web with: summary > template > thumbnails > index")
     parser.add_argument("-c", "--convert", action="store_true", help="Convert " + ext_image_convert_str + " to jpg, and " + ext_video_convert_str + " to mp4. Converted files inherit source file data.")
@@ -1927,6 +1957,7 @@ if __name__ == "__main__":
     parser.add_argument("-M", "--default-maps", action="store_true", help="Resets map links")
     parser.add_argument("-I", "--integrate", action="store_true", help="Integrate files and {MEDIA_DATA_FILE} from subdirectories into the parent directory.")
     parser.add_argument("-v", "--verbose", action="store_true", help="Enables verbose output")
+    parser.add_argument("-A", "--address_book", type=str, const="all", nargs='?', help="Address book")
     parser.add_argument("-t", "--time-sequenced", type=int, nargs='?', const=4, default=0, help="Use -T/--hhmmss time if given or the first file's time, and increments by the default of 4 seconds for sebsequent files")
     parser.add_argument("-s", "--state", help="State tag, Unsupported characters [-._]")
     parser.add_argument("-l", "--location", help="Location tag, Unsupported characters [-.]")
@@ -1936,8 +1967,7 @@ if __name__ == "__main__":
     
     print(f"Media Organizer, v{SVER}")
     if len(sys.argv) == 1: 
-        print(f"LOCATION TAGS")
-        print(json.dumps(LOCATION_TAG, indent=4))
+        print_address_book()
         print(f"\nMedia Organizer, v{SVER}\n")
         parser.print_help()
         print(f"""\nurl 1: <a href="https://www.google.com/maps/place/street+city+state+zip/@lat,lon,200m" target="_blank"></a>""")
@@ -1956,6 +1986,7 @@ if __name__ == "__main__":
     elif args.template: create_group_templates(target_input, args.recurse)
     elif args.thumbnails: create_thumbnails(target_input, args.recurse, args.verbose)
     elif args.index: create_index(target_input, args.recurse, args.verbose)
+    elif args.address_book: print_address_book()
     elif args.log: print_media_table(target_input, args.recurse, args.verbose)
     elif args.reset_revisions: reset_revisions(target_input, args.recurse)
     elif args.reverse: reverse_last_session(target_input, args.recurse)
@@ -1964,4 +1995,4 @@ if __name__ == "__main__":
         integrate_subdirs(target_input)
         print(f"Next: Run morg on the directory to finish updating the database\n")
     else: process_media(target_input, args.recurse, args.adjacent, args.state, args.location, args.description, args.yyyymmdd, args.hhmmss, args.time_sequenced, args.force, args.convert, args.convert_remove, args.default_titles, args.default_maps, args.verbose)
-    
+

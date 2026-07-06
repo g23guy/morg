@@ -1,5 +1,5 @@
 #!/usr/bin/python3.12
-SVER = '1.0.15.1'
+SVER = '1.0.15.2'
 ##############################################################################
 # morg - Media Organizer
 # Copyright (C) 2026 Jason Record
@@ -1560,8 +1560,10 @@ def process_media(target_input, recurse, adjacent, state_arg, location_arg, desc
             if default: mdata[group_key]['year'] = -1
 
 #            print(f"1>                    {old_name}, gk={group_key}, ogk={old_group_key}, fgk={found_group_key}, fmk={found_media_key}")
-            s_val = state_arg if state_arg is not None else (match.group(2) if match else (mdata[group_key][old_name].get('state', '') if old_name in mdata[group_key] else 'us'))
             l_val = location_arg if location_arg is not None else (match.group(3) if match else (mdata[group_key][old_name].get('location', '') if old_name in mdata[group_key] else 'unknown'))
+            s_val = state_arg if state_arg is not None else (match.group(2) if match else (mdata[group_key][old_name].get('state', '') if old_name in mdata[group_key] else 'us'))
+            if s_val == "us" and l_val in LOCATION_TAG:
+                s_val = LOCATION_TAG[l_val]['state']
             if default:
                 mdata[group_key].update({'group_title': group_title})
 
@@ -1675,7 +1677,6 @@ def process_media(target_input, recurse, adjacent, state_arg, location_arg, desc
             else:
                 d = mdata[old_group_key].pop(old_name)
                 old_media_key = old_name # in case it needs deleting by convert_remove
-
             d.update({"new_name": new_name})
             if renamed: d.update({'prev_name': old_name})
             if not d.get('orig_name'): d.update({'orig_name': old_name})
@@ -1959,7 +1960,7 @@ if __name__ == "__main__":
     parser.add_argument("-v", "--verbose", action="store_true", help="Enables verbose output")
     parser.add_argument("-A", "--address_book", type=str, const="all", nargs='?', help="Address book")
     parser.add_argument("-t", "--time-sequenced", type=int, nargs='?', const=4, default=0, help="Use -T/--hhmmss time if given or the first file's time, and increments by the default of 4 seconds for sebsequent files")
-    parser.add_argument("-s", "--state", help="State tag, Unsupported characters [-._]")
+    parser.add_argument("-s", "--state", type=str, nargs='?', help="State tag, Unsupported characters [-._]")
     parser.add_argument("-l", "--location", help="Location tag, Unsupported characters [-.]")
     parser.add_argument("-d", "--description", help="Description tag, Unsupported characters [-.]")
     parser.add_argument("-D", "--yyyymmdd", type=date_digits, help="Override meta creation(if possible) and filesystem modification date value, requires 8 digits")

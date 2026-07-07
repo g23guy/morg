@@ -1,5 +1,5 @@
 #!/usr/bin/python3.12
-SVER = '1.0.15.2'
+SVER = '1.0.15.3'
 ##############################################################################
 # morg - Media Organizer
 # Copyright (C) 2026 Jason Record
@@ -397,6 +397,8 @@ def time_digits(value):
 
 def normalize_files_input(input_list):
     output = {'list': [], 'single': '', 'root': ''}
+    if input_list[0].endswith('__e__'):
+        input_list[0] = '.'
     src = os.path.abspath(input_list[0])
     output['root'] = src if os.path.isdir(src) else os.path.dirname(src)
     if len(input_list) > 1:
